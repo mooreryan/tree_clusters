@@ -206,26 +206,59 @@ RSpec.describe TreeClusters do
         }
 
         expect(attrs.attrs ["g1", "g2"], :genes).
-          to eq [Set.new([1,2,3,4]), Set.new([1,2,4,5])]
+          to eq TreeClusters::AttrArray.new [Set.new([1,2,3,4]), Set.new([1,2,4,5])]
+      end
+
+      it "returns an AttrArray" do
+        attrs["g1"] = {
+          genes: Set.new([1,2,3,4]),
+          location: Set.new(["Delaware", "PA"])
+        }
+
+        expect(attrs.attrs ["g1"], :genes).to be_a TreeClusters::AttrArray
+      end
+
+      context "when a genome is not present in the hash" do
+        it "skips it and keeps going" do
+          attrs["g1"] = {
+            genes: Set.new([1,2,3,4]),
+            location: Set.new(["Delaware", "PA"])
+          }
+
+          expect(attrs.attrs ["g1", "g2"], :genes).
+            to eq TreeClusters::AttrArray.new [Set.new([1,2,3,4])]
+        end
+      end
+
+      context "when selected attr is not present" do
+        it "raises an error" do
+          attrs["g1"] = {
+            genes: Set.new([1,2,3,4]),
+            location: Set.new(["Delaware", "PA"])
+          }
+
+          expect { attrs.attrs ["g1"], :apples }.
+            to raise_error AbortIf::Exit
+        end
       end
     end
   end
 
-  describe TreeClusters::Array do
+  describe TreeClusters::AttrArray do
     it "inherits from Object::Array" do
-      expect(TreeClusters::Array.new).to be_a Object::Array
+      expect(TreeClusters::AttrArray.new).to be_a Object::Array
     end
 
     describe "#union" do
       it "takes the union of all sets in the array" do
-        ary = TreeClusters::Array.new [Set.new([1,2,3]), Set.new([2,3,4])]
+        ary = TreeClusters::AttrArray.new [Set.new([1,2,3]), Set.new([2,3,4])]
         expect(ary.union).to eq Set.new([1,2,3,4])
       end
     end
 
     describe "#intersection" do
       it "takes the intersection of all sets in the array" do
-        ary = TreeClusters::Array.new [Set.new([1,2,3]), Set.new([2,3,4])]
+        ary = TreeClusters::AttrArray.new [Set.new([1,2,3]), Set.new([2,3,4])]
         expect(ary.intersection).to eq Set.new([2,3])
       end
     end

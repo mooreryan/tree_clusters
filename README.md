@@ -1,6 +1,8 @@
 # TreeClusters
 
-Wanna do something with everycluster in a Newick tree? So do we!
+[![Gem Version](https://badge.fury.io/rb/tree_clusters.svg)](http://badge.fury.io/rb/tree_clusters) [![Build Status](https://travis-ci.org/mooreryan/tree_clusters.svg?branch=master)](https://travis-ci.org/mooreryan/tree_clusters) [![Coverage Status](https://coveralls.io/repos/mooreryan/tree_clusters/badge.svg)](https://coveralls.io/r/mooreryan/tree_clusters)
+
+Wanna do something with every cluster in a Newick tree? So do we!
 
 ## Installation
 
@@ -18,9 +20,33 @@ Or install it yourself as:
 
     $ gem install tree_clusters
 
+## Documentation
+
+Checkout
+[TreeClusters docs](http://rubydoc.info/gems/tree_clusters)
+for the full api documentation.
+
 ## Usage
 
-TODO: Write usage instructions here
+Here is a small example.
+
+```ruby
+# Require the library
+require "tree_clusters"
+
+# Make the TreeClusters methods available under the namespace
+# TreeClusters
+TreeClusters.extend TreeClusters
+
+# Read in the Newick formatted tree
+tree = NewickTree.fromFile ARGV.first
+
+# Iterate through all the clades
+TreeClusters.all_clades(tree).each do |clade|
+  # Print out the clade name and the names of all leaves in that clade
+  printf "%s\t%s\n", clade.name, clade.all_leaves.join(", ")
+end
+```
 
 ## Development
 
