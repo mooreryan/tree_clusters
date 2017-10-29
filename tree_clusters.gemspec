@@ -24,6 +24,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake", "~> 10.0"
   spec.add_development_dependency "rspec", "~> 3.0"
 
-  spec.add_runtime_dependency 'abort_if', '~> 0.2.0'
-  spec.add_runtime_dependency "bio", "~> 1.5"
+  spec.add_runtime_dependency "abort_if", "~> 0.2.0"
+  spec.add_runtime_dependency "newick-ruby", "~> 1.0", ">= 1.0.4"
 end
