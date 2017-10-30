@@ -92,7 +92,11 @@ def puts_info fhandle, clade_name, aln_len, key_cols
                ].join "\t"
 end
 
-TreeClusters.all_clades(tree).each_with_index do |clade, idx|
+TreeClusters.all_clades(tree).each_with_index { |clade, idx| p [idx, clade] }
+
+exit
+
+TreeClusters.all_clades(tree).with_index do |clade, idx|
   # Use this for a name as not all clades will have good names.
   clade_name = "clade_#{idx + 1}"
 

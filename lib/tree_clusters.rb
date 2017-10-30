@@ -33,7 +33,7 @@ module TreeClusters
   #
   # @return [Enumerator<Clade>] enumerator of Clade objects
   def all_clades tree
-    return enum_for(:all_clades) unless block_given?
+    return enum_for(:all_clades, tree) unless block_given?
 
     tree.clade_nodes.reverse.each do |node|
       yield Clade.new node, tree

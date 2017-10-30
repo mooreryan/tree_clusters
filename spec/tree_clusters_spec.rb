@@ -220,6 +220,13 @@ RSpec.describe TreeClusters do
       it "returns an Enumerator" do
         expect(klass.all_clades tree).to be_an Enumerator
       end
+
+      it "returns an Enumerator with proper yield args" do
+        enum = klass.all_clades tree
+
+        expect { |b| enum.each &b  }.
+          to yield_successive_args(*expected_clades)
+      end
     end
   end
 
