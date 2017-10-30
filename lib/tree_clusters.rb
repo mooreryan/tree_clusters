@@ -29,10 +29,14 @@ module TreeClusters
   #
   # @param tree [NewickTree] a NewickTree object
   #
-  # @return [Array<Clade>] array of Clade objects
+  # @yieldparam clade [Clade] a clade of the tree
+  #
+  # @return [Enumerator<Clade>] enumerator of Clade objects
   def all_clades tree
-    tree.clade_nodes.reverse.map do |node|
-      Clade.new node, tree
+    return enum_for(:all_clades) unless block_given?
+
+    tree.clade_nodes.reverse.each do |node|
+      yield Clade.new node, tree
     end
   end
 
@@ -72,6 +76,14 @@ module TreeClusters
 
       TreeClusters::AttrArray.new ary
     end
+
+    def add leaf, attr, val
+      if self.has_key? leaf
+        self[leaf][attr] = val
+      else
+        self[leaf] = { attr => val }
+      end
+    end
   end
 
   # Provides convenience methods for working with Arrays of Sets
@@ -97,8 +109,10 @@ module TreeClusters
                   :all_leaves,
                   :left_leaves,
                   :right_leaves,
-                  :sibling_leaves,
+                  :all_sibling_leaves,
+                  :each_sibling_leaf_set,
                   :parent_leaves,
+                  :non_parent_leaves,
                   :other_leaves
 
     # @param node [NewickNode] a NewickNode from a NewickTree
@@ -107,19 +121,22 @@ module TreeClusters
       @name = node.name
       @all_leaves = descendant_leaves node
 
-      children = node.children
-      assert children.count == 2,
-             "Not a bifurcating tree (See: #{node.name})"
-      lchild, rchild = node.children
+      if (children = node.children).count == 2
+        lchild, rchild = node.children
 
-      @left_leaves = descendant_leaves lchild
+        @left_leaves = descendant_leaves lchild
 
-      @right_leaves = descendant_leaves rchild
+        @right_leaves = descendant_leaves rchild
+      end
 
       siblings = node.siblings
-      assert siblings.count == 1,
-             "Node #{node.name} has more than one sibling."
-      @sibling_leaves = descendant_leaves siblings.first
+      # assert siblings.count == 1,
+      #        "Node #{node.name} has more than one sibling."
+
+      @each_sibling_leaf_set = siblings.
+                               map { |node| descendant_leaves node }
+
+      @all_sibling_leaves = @each_sibling_leaf_set.flatten.uniq
 
       parent = node.parent
       assert parent,
@@ -128,6 +145,9 @@ module TreeClusters
 
       @other_leaves =
         Object::Set.new(tree.taxa) - Object::Set.new(all_leaves)
+
+      @non_parent_leaves =
+        Object::Set.new(tree.taxa) - Object::Set.new(parent_leaves)
     end
 
     # Compares two Clades field by field.
@@ -140,7 +160,8 @@ module TreeClusters
         self.all_leaves == clade.all_leaves &&
         self.left_leaves == clade.left_leaves &&
         self.right_leaves == clade.right_leaves &&
-        self.sibling_leaves == clade.sibling_leaves &&
+        self.all_sibling_leaves == clade.all_sibling_leaves &&
+        self.each_sibling_leaf_set == clade.each_sibling_leaf_set &&
         self.parent_leaves == clade.parent_leaves &&
         self.other_leaves == clade.other_leaves
       )

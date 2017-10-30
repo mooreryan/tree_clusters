@@ -8,5 +8,8 @@
 /spec/reports/
 /tmp/
 
+test_files/pola*
+test_files/rnr*
+
 # rspec failure tracking
 .rspec_status

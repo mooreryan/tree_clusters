@@ -25,18 +25,69 @@ RSpec.describe TreeClusters do
     Object::NewickTree.fromFile newick_fname
   end
 
+  let(:non_bifurcating_tree) do
+    Object::NewickTree.fromFile(File.join(test_file_dir,
+                                          "non_bifurcating.tre"))
+  end
+  let(:non_bifurcating_clades) do
+    [
+      TreeClusters::Clade.new(non_bifurcating_tree.findNode("cluster1",
+                                                            exact: true),
+                              tree),
+      TreeClusters::Clade.new(non_bifurcating_tree.findNode("cluster2",
+                                                            exact: true),
+                              tree),
+      TreeClusters::Clade.new(non_bifurcating_tree.findNode("cluster3",
+                                                            exact: true),
+                              tree),
+    ]
+  end
+  let(:non_bifurcating_all_sibling_leaves) do
+    [
+      ["g4", "g5", "g6",
+       "g1", "g2", "g3",].sort,
+      ["g7", "g8", "g9",
+       "g1", "g2", "g3",].sort,
+      ["g4", "g5", "g6",
+       "g7", "g8", "g9",].sort
+    ]
+  end
+
+  let(:non_bifurcating_each_sibling_leaf_set) do
+    [
+      [["g4", "g5", "g6"],
+       ["g1", "g2", "g3"]].sort,
+
+      [["g7", "g8", "g9"],
+       ["g1", "g2", "g3"]].sort,
+
+      [["g4", "g5", "g6"],
+       ["g7", "g8", "g9"]].sort,
+    ]
+  end
+
   let(:expected_clades) do
     [
-      TreeClusters::Clade.new(tree.findNode("cluster19", exact: true), tree),
-      TreeClusters::Clade.new(tree.findNode("cluster22", exact: true), tree),
-      TreeClusters::Clade.new(tree.findNode("cluster11", exact: true), tree),
-      TreeClusters::Clade.new(tree.findNode("cluster14", exact: true), tree),
-      TreeClusters::Clade.new(tree.findNode("cluster7",  exact: true), tree),
-      TreeClusters::Clade.new(tree.findNode("cluster1",  exact: true), tree),
-      TreeClusters::Clade.new(tree.findNode("cluster4",  exact: true), tree),
-      TreeClusters::Clade.new(tree.findNode("cluster6",  exact: true), tree),
-      TreeClusters::Clade.new(tree.findNode("cluster10", exact: true), tree),
-      TreeClusters::Clade.new(tree.findNode("cluster16", exact: true), tree),
+      TreeClusters::Clade.new(tree.findNode("cluster19", exact: true),
+                              tree),
+      TreeClusters::Clade.new(tree.findNode("cluster22", exact: true),
+                              tree),
+      TreeClusters::Clade.new(tree.findNode("cluster11", exact: true),
+                              tree),
+      TreeClusters::Clade.new(tree.findNode("cluster14", exact: true),
+                              tree),
+      TreeClusters::Clade.new(tree.findNode("cluster7",  exact: true),
+                              tree),
+      TreeClusters::Clade.new(tree.findNode("cluster1",  exact: true),
+                              tree),
+      TreeClusters::Clade.new(tree.findNode("cluster4",  exact: true),
+                              tree),
+      TreeClusters::Clade.new(tree.findNode("cluster6",  exact: true),
+                              tree),
+      TreeClusters::Clade.new(tree.findNode("cluster10", exact: true),
+                              tree),
+      TreeClusters::Clade.new(tree.findNode("cluster16", exact: true),
+                              tree),
     ]
   end
 
@@ -52,6 +103,11 @@ RSpec.describe TreeClusters do
      "cluster10",
      "cluster16",
     ]
+  end
+
+  let(:all_taxa) do
+    ["g1", "g2", "g3", "g4a", "g4b", "g5", "g6", "g7", "g8", "g9",
+     "g10", "g11"]
   end
 
   let(:expected_all_leaves) do
@@ -99,7 +155,7 @@ RSpec.describe TreeClusters do
     ]
   end
 
-  let(:expected_sibling_leaves) do
+  let(:expected_all_sibling_leaves) do
     [
       ["g11"],
       ["g1", "g2", "g3", "g4a", "g4b", "g5", "g6", "g7", "g8"],
@@ -144,44 +200,91 @@ RSpec.describe TreeClusters do
     ]
   end
 
+  let(:expected_non_parent_leaves) do
+    expected_parent_leaves.map { |leaves| Set.new(all_taxa - leaves) }
+  end
+
   it "has a version number" do
     expect(TreeClusters::VERSION).not_to be nil
   end
 
   describe "#all_clades" do
-    it "returns all the clades" do
-      expect(klass.all_clades tree).to eq expected_clades
+    context "with block given" do
+      it "yields all the clades" do
+        expect { |b| klass.all_clades(tree, &b) }.
+          to yield_successive_args(*expected_clades)
+      end
+    end
+
+    context "with no block given" do
+      it "returns an Enumerator" do
+        expect(klass.all_clades tree).to be_an Enumerator
+      end
     end
   end
 
   describe TreeClusters::Clade do
     describe "::new" do
       it "generates clade with proper name" do
-        expect(expected_clades.map(&:name)).to eq expected_names
+        expect(expected_clades.map(&:name)).
+          to eq expected_names
       end
 
       it "generates clade with proper all_leaves" do
-        expect(expected_clades.map(&:all_leaves)).to eq expected_all_leaves
+        expect(expected_clades.map(&:all_leaves)).
+          to eq expected_all_leaves
       end
 
       it "generates clade with proper left_leaves" do
-        expect(expected_clades.map(&:left_leaves)).to eq expected_left_leaves
+        expect(expected_clades.map(&:left_leaves)).
+          to eq expected_left_leaves
       end
 
       it "generates clade with proper right_leaves" do
-        expect(expected_clades.map(&:right_leaves)).to eq expected_right_leaves
+        expect(expected_clades.map(&:right_leaves)).
+          to eq expected_right_leaves
       end
 
-      it "generates clade with proper sibling_leaves" do
-        expect(expected_clades.map(&:sibling_leaves)).to eq expected_sibling_leaves
+      it "generates clade with proper all_sibling_leaves" do
+        expect(expected_clades.map(&:all_sibling_leaves)).
+          to eq expected_all_sibling_leaves
       end
 
       it "generates clade with proper parent_leaves" do
-        expect(expected_clades.map(&:parent_leaves)).to eq expected_parent_leaves
+        expect(expected_clades.map(&:parent_leaves)).
+          to eq expected_parent_leaves
       end
 
       it "generates clade with proper other_leaves" do
-        expect(expected_clades.map(&:other_leaves)).to eq expected_other_leaves
+        expect(expected_clades.map(&:other_leaves)).
+          to eq expected_other_leaves
+      end
+
+      it "generates clade with proper non_parent_leaves" do
+        expect(expected_clades.map(&:non_parent_leaves)).
+          to eq expected_non_parent_leaves
+      end
+    end
+
+    context "when tree is non bifurcating" do
+      it "doesn't set left_leaves" do
+        expect(non_bifurcating_clades.map(&:left_leaves)).
+          to all be_nil
+      end
+
+      it "doesn't set right_leaves" do
+        expect(non_bifurcating_clades.map(&:right_leaves)).
+          to all be_nil
+      end
+
+      it "gives all the sibling leaves" do
+        expect(non_bifurcating_clades.map(&:all_sibling_leaves)).
+          to eq non_bifurcating_all_sibling_leaves
+      end
+
+      it "gives each set of sibling leaves" do
+        expect(non_bifurcating_clades.map(&:each_sibling_leaf_set)).
+          to eq non_bifurcating_each_sibling_leaf_set
       end
     end
   end
@@ -191,6 +294,26 @@ RSpec.describe TreeClusters do
 
     it "inherits from Hash" do
       expect(TreeClusters::Attrs.new).to be_a Hash
+    end
+
+    describe "#add" do
+      context "leaf is already in the hash" do
+        it "adds new info into the hash" do
+          attrs.add "g1", :aln, "A-T"
+          attrs.add "g1", :genes, Set.new([1,2])
+          expected_attrs =
+            { "g1" => { aln: "A-T", genes: Set.new([1,2]) } }
+          expect(attrs).to eq expected_attrs
+        end
+      end
+
+      context "leaf is not yet in the hash" do
+        it "adds new info to the hash" do
+          attrs.add "g1", :aln, "A-T"
+          expected_attrs = { "g1" => { aln: "A-T" } }
+          expect(attrs).to eq expected_attrs
+        end
+      end
     end
 
     describe "#attrs" do
@@ -206,7 +329,8 @@ RSpec.describe TreeClusters do
         }
 
         expect(attrs.attrs ["g1", "g2"], :genes).
-          to eq TreeClusters::AttrArray.new [Set.new([1,2,3,4]), Set.new([1,2,4,5])]
+          to eq TreeClusters::AttrArray.new [Set.new([1,2,3,4]),
+                                             Set.new([1,2,4,5])]
       end
 
       it "returns an AttrArray" do
@@ -215,7 +339,8 @@ RSpec.describe TreeClusters do
           location: Set.new(["Delaware", "PA"])
         }
 
-        expect(attrs.attrs ["g1"], :genes).to be_a TreeClusters::AttrArray
+        expect(attrs.attrs ["g1"], :genes).
+          to be_a TreeClusters::AttrArray
       end
 
       context "when a genome is not present in the hash" do
@@ -251,14 +376,16 @@ RSpec.describe TreeClusters do
 
     describe "#union" do
       it "takes the union of all sets in the array" do
-        ary = TreeClusters::AttrArray.new [Set.new([1,2,3]), Set.new([2,3,4])]
+        ary = TreeClusters::AttrArray.new [Set.new([1,2,3]),
+                                           Set.new([2,3,4])]
         expect(ary.union).to eq Set.new([1,2,3,4])
       end
     end
 
     describe "#intersection" do
       it "takes the intersection of all sets in the array" do
-        ary = TreeClusters::AttrArray.new [Set.new([1,2,3]), Set.new([2,3,4])]
+        ary = TreeClusters::AttrArray.new [Set.new([1,2,3]),
+                                           Set.new([2,3,4])]
         expect(ary.intersection).to eq Set.new([2,3])
       end
     end
