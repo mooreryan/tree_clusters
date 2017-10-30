@@ -11,5 +11,7 @@
 test_files/pola*
 test_files/rnr*
 
+.ruby-*
+
 # rspec failure tracking
 .rspec_status
