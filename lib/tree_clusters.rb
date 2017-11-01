@@ -88,10 +88,10 @@ module TreeClusters
         end.select { |ary| ary.last == md_tag }
 
         if non_clade_leaves_with_this_md_tag.count.zero?
-          if snazzy_clades.has_key? clade.name
-            snazzy_clades[clade.name][md_cat] = md_tag
+          if snazzy_clades.has_key? clade
+            snazzy_clades[clade][md_cat] = md_tag
           else
-            snazzy_clades[clade.name] = { md_cat => md_tag }
+            snazzy_clades[clade] = { md_cat => md_tag }
           end
         end
       end

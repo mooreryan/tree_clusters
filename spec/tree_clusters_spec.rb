@@ -397,8 +397,15 @@ RSpec.describe TreeClusters do
   # that tag is not found outside of the clade.
   describe "#snazzy_clades" do
     it "returns the snazzy clade info" do
-      expect(klass.snazzy_clades small_tree, metadata).
-        to eq small_tree_snazzy_clades
+      # TODO the hash is keyed on a Clade but the test data has
+      # clade.name. Cannot key the hash on clade.name because not all
+      # clades have it.
+      info = klass.snazzy_clades small_tree, metadata
+      info_hash = info.
+                  map { |clade, snazzy_info| [clade.name, snazzy_info] }.
+                  to_h
+
+      expect(info_hash).to eq small_tree_snazzy_clades
     end
   end
 
