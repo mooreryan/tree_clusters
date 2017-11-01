@@ -230,8 +230,201 @@ RSpec.describe TreeClusters do
     end
   end
 
+  let(:metadata) do
+    {
+      "coolness"   => { "a-1"   => "cool",
+                        "a-2"   => "cool",
+                        "b-1"   => "notcool",
+                        "b-2"   => "notcool",
+                        "bb-1"  => "notcool",
+                        "bbb-1" => "notcool",
+                        "bbb-2" => "notcool", },
+      "snazzyness" => { "a-1"   => "snazzy",
+                        "a-2"   => "snazzy",
+                        "b-1"   => "snazzy",
+                        "b-2"   => "snazzy",
+                        "bb-1"  => "notsnazzy",
+                        "bbb-1" => "notsnazzy",
+                        "bbb-2" => "notsnazzy", },
+      "sillyness"  => { "a-1"   => "1",
+                        "a-2"   => "7",
+                        "b-1"   => "3",
+                        "b-2"   => "4",
+                        "bb-1"  => "5",
+                        "bbb-1" => "1",
+                        "bbb-2" => "7", },
+      "jauntiness" => { "a-1"   => "jaunty",
+                        "a-2"   => "notjaunty",
+                        "b-1"   => "jaunty",
+                        "b-2"   => "notjaunty",
+                        "bb-1"  => "notjaunty",
+                        "bbb-1" => "jaunty",
+                        "bbb-2" => "jaunty", },
+      "oddness"    => { "a-1"   => "quite odd",
+                        "a-2"   => "quite odd",
+                        "b-1"   => "not odd",
+                        "b-2"   => "not odd",
+                        "bb-1"  => "not odd",
+                        "bbb-1" => "rather odd",
+                        "bbb-2" => "rather odd", },
+    }
+  end
+  let(:small_tree_fname) do
+    File.join test_file_dir, "small.tre"
+  end
+  let(:small_tree) do
+    NewickTree.fromFile small_tree_fname
+  end
+  # The order is B3, B2, B1, B, A
+  let(:small_tree_clades) do
+    klass.all_clades small_tree, metadata
+  end
+
+  # A clade is a single tag clade for a metadata category if all
+  # leaves in the clade have the same metadata tag for that metadata
+  # category.
+  let(:small_tree_single_tag_info) do
+    [  # B3
+      { "coolness"   => "notcool",
+        "snazzyness" => "notsnazzy",
+        "sillyness"  => nil,
+        "jauntiness" => "jaunty",
+        "oddness"    => "rather odd" },
+      # B2
+      { "coolness"   => "notcool",
+        "snazzyness" => "notsnazzy",
+        "sillyness"  => nil,
+        "jauntiness" => nil,
+        "oddness"    => nil },
+      # B1
+      { "coolness"   => "notcool",
+        "snazzyness" => "snazzy",
+        "sillyness"  => nil,
+        "jauntiness" => nil,
+        "oddness"    => "not odd" },
+      # B
+      { "coolness"   => "notcool",
+        "snazzyness" => nil,
+        "sillyness"  => nil,
+        "jauntiness" => nil,
+        "oddness"    => nil },
+      # A
+      { "coolness"   => "cool",
+        "snazzyness" => "snazzy",
+        "sillyness"  => nil,
+        "jauntiness" => nil,
+        "oddness"    => "quite odd" },
+    ]
+  end
+  let(:small_tree_deepest_single_tag_clades) do
+    {
+      "cluster_B" => { "coolness" => "notcool" },
+      "cluster_B1" => { "snazzyness" => "snazzy",
+                        "oddness" => "not odd" },
+      "cluster_B2" => { "snazzyness" => "notsnazzy" },
+      "cluster_B3" => { "jauntiness" => "jaunty",
+                        "oddness" => "rather odd" },
+      "cluster_A" => { "coolness" => "cool",
+                       "snazzyness" => "snazzy",
+                       "oddness" => "quite odd" }
+    }
+  end
+  # snazzy_clades only has clades which are snazzy and the tags with
+  # which they are snazzy in contrast to all tags for a particular
+  # clade
+  let(:small_tree_snazzy_clades) do
+    { "cluster_B3" =>
+      { "oddness"    => "rather odd" },
+
+      "cluster_B2" =>
+      { "snazzyness" => "notsnazzy" },
+
+      "cluster_B" =>
+      { "coolness"   => "notcool" },
+
+      "cluster_A" =>
+      { "coolness"   => "cool",
+        "oddness"    => "quite odd" },
+    }
+  end
+  let(:small_tree_all_tags) do
+    [  # B3
+      { "coolness"   => Set.new(["notcool"]),
+        "snazzyness" => Set.new(["notsnazzy"]),
+        "sillyness"  => Set.new(["1", "7"]),
+        "jauntiness" => Set.new(["jaunty"]),
+        "oddness"    => Set.new(["rather odd"])},
+      # B2
+      { "coolness"   => Set.new(["notcool"]),
+        "snazzyness" => Set.new(["notsnazzy"]),
+        "sillyness"  => Set.new(["1", "5", "7"]),
+        "jauntiness" => Set.new(["jaunty", "notjaunty"]),
+        "oddness"    => Set.new(["not odd", "rather odd"])},
+      # B1
+      { "coolness"   => Set.new(["notcool"]),
+        "snazzyness" => Set.new(["snazzy"]),
+        "sillyness"  => Set.new(["3", "4"]),
+        "jauntiness" => Set.new(["jaunty", "notjaunty"]),
+        "oddness"    => Set.new(["not odd"])},
+      # B
+      { "coolness"   => Set.new(["notcool"]),
+        "snazzyness" => Set.new(["snazzy", "notsnazzy"]),
+        "sillyness"  => Set.new(["1", "3", "4", "5", "7"]),
+        "jauntiness" => Set.new(["jaunty", "notjaunty"]),
+        "oddness"    => Set.new(["not odd", "rather odd"])},
+      # A
+      { "coolness"   => Set.new(["cool"]),
+        "snazzyness" => Set.new(["snazzy"]),
+        "sillyness"  => Set.new(["1", "7"]),
+        "jauntiness" => Set.new(["jaunty", "notjaunty"]),
+        "oddness"    => Set.new(["quite odd"])},
+    ]
+  end
+  let(:mapping_file) { File.join test_file_dir, "small.mapping" }
+
+  describe "#read_mapping_file" do
+    it "reads the mapping file" do
+      expect(klass.read_mapping_file mapping_file).to eq metadata
+    end
+
+    it "returns an instance of Attrs" do
+      expect(klass.read_mapping_file mapping_file).
+        to be_a TreeClusters::Attrs
+    end
+  end
+
+  # A clade is a snazzy clade if it is a single tag clade and also
+  # that tag is not found outside of the clade.
+  describe "#snazzy_clades" do
+    it "returns the snazzy clade info" do
+      expect(klass.snazzy_clades small_tree, metadata).
+        to eq small_tree_snazzy_clades
+    end
+  end
+
+  # describe "#deepest_single_tag_clades" do
+  #   it "returns the single tag clades, but only those not " +
+  #      "contained within another clade single tag clade w.r.t. " +
+  #      "to the same tag" do
+  #     expect(klass.deepest_single_tag_clades small_tree, metadata).
+  #       to eq small_tree_deepest_single_tag_clades
+  #   end
+  # end
+
   describe TreeClusters::Clade do
     describe "::new" do
+      context "when given metadata" do
+        it "sets single_tag_info" do
+          expect(small_tree_clades.map(&:single_tag_info)).
+            to eq small_tree_single_tag_info
+        end
+
+        it "sets all_tags" do
+          expect(small_tree_clades.map(&:all_tags)).
+            to eq small_tree_all_tags
+        end
+      end
+
       it "generates clade with proper name" do
         expect(expected_clades.map(&:name)).
           to eq expected_names

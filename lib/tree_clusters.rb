@@ -32,12 +32,91 @@ module TreeClusters
   # @yieldparam clade [Clade] a clade of the tree
   #
   # @return [Enumerator<Clade>] enumerator of Clade objects
-  def all_clades tree
-    return enum_for(:all_clades, tree) unless block_given?
+  def all_clades tree, metadata=nil
+    return enum_for(:all_clades, tree, metadata) unless block_given?
 
     tree.clade_nodes.reverse.each do |node|
-      yield Clade.new node, tree
+      yield Clade.new node, tree, metadata
     end
+  end
+
+  def snazzy_clades tree, metadata
+    snazzy_clades = {}
+
+    clades = self.
+             all_clades(tree, metadata).
+             sort_by { |clade| clade.all_leaves.count }.
+             reverse
+
+    metadata.each do |md_cat, leaf2mdtag|
+      already_checked = Set.new
+      single_tag_clades = {}
+
+      clades.each do |clade|
+        assert clade.all_leaves.count > 1,
+               "A clade cannot also be a leaf"
+
+        unless clade.all_leaves.all? do |leaf|
+                 already_checked.include? leaf
+               end
+          md_tags = clade.all_leaves.map do |leaf|
+            assert leaf2mdtag.has_key?(leaf),
+                   "leaf #{leaf} is missing from leaf2mdtag ht"
+
+            leaf2mdtag[leaf]
+          end
+
+          # this clade is mono-phyletic w.r.t. this metadata category.
+          if md_tags.uniq.count == 1
+            clade.all_leaves.each do |leaf|
+              already_checked << leaf
+            end
+
+            assert !single_tag_clades.has_key?(clade),
+                   "clade #{clade.name} is repeated in single_tag_clades for #{md_cat}"
+
+            single_tag_clades[clade] = md_tags.first
+          end
+        end
+      end
+
+      single_tag_clades.each do |clade, md_tag|
+        non_clade_leaves = tree.taxa - clade.all_leaves
+
+        non_clade_leaves_with_this_md_tag = non_clade_leaves.map do |leaf|
+          [leaf, leaf2mdtag[leaf]]
+        end.select { |ary| ary.last == md_tag }
+
+        if non_clade_leaves_with_this_md_tag.count.zero?
+          if snazzy_clades.has_key? clade.name
+            snazzy_clades[clade.name][md_cat] = md_tag
+          else
+            snazzy_clades[clade.name] = { md_cat => md_tag }
+          end
+        end
+      end
+    end
+
+    snazzy_clades
+  end
+
+  def read_mapping_file fname
+    md_cat_names = nil
+    metadata = TreeClusters::Attrs.new
+
+    File.open(fname, "rt").each_line.with_index do |line, idx|
+      leaf_name, *metadata_vals = line.chomp.split "\t"
+
+      if idx.zero?
+        md_cat_names = metadata_vals
+      else
+        metadata_vals.each_with_index do |val, val_idx|
+          metadata.add md_cat_names[val_idx], leaf_name, val
+        end
+      end
+    end
+
+    metadata
   end
 
   # A Hash table for genome/leaf/taxa attributes
@@ -113,11 +192,13 @@ module TreeClusters
                   :each_sibling_leaf_set,
                   :parent_leaves,
                   :non_parent_leaves,
-                  :other_leaves
+                  :other_leaves,
+                  :single_tag_info,
+                  :all_tags
 
     # @param node [NewickNode] a NewickNode from a NewickTree
     # @param tree [NewickTree] a NewickTree
-    def initialize node, tree
+    def initialize node, tree, metadata=nil
       @name = node.name
       @all_leaves = descendant_leaves node
 
@@ -148,6 +229,14 @@ module TreeClusters
 
       @non_parent_leaves =
         Object::Set.new(tree.taxa) - Object::Set.new(parent_leaves)
+
+      if metadata
+        @metadata = metadata
+        @all_tags ||= get_all_tags
+        @single_tag_info ||= get_single_tag_info
+      else
+        @single_tag_info = nil
+      end
     end
 
     # Compares two Clades field by field.
@@ -163,7 +252,8 @@ module TreeClusters
         self.all_sibling_leaves == clade.all_sibling_leaves &&
         self.each_sibling_leaf_set == clade.each_sibling_leaf_set &&
         self.parent_leaves == clade.parent_leaves &&
-        self.other_leaves == clade.other_leaves
+        self.other_leaves == clade.other_leaves &&
+        self.single_tag_info == clade.single_tag_info
       )
     end
 
@@ -173,6 +263,27 @@ module TreeClusters
     end
 
     private
+
+    def get_single_tag_info
+      @all_tags.map do |md_cat, set|
+        [md_cat, set.count == 1 ? set.to_a.first : nil]
+      end.to_h
+    end
+
+    def get_all_tags
+      # name2tag has leaf names => metadata tag and is an Attrs
+      @metadata.map do |md_cat, name2tag|
+        tag_info = self.all_leaves.map do |leaf|
+          assert name2tag.has_key?(leaf),
+                 "leaf #{leaf} is not present in name2tag ht for " +
+                 "md_cat #{md_cat}"
+
+          name2tag[leaf]
+        end
+
+        [md_cat, Set.new(tag_info)]
+      end.to_h
+    end
 
     def descendant_leaves node
       if node.leaf?

@@ -1,0 +1,8 @@
+name	coolness	snazzyness	sillyness	jauntiness	oddness
+a-1	cool	snazzy	1	jaunty	quite odd
+a-2	cool	snazzy	7	notjaunty	quite odd
+b-1	notcool	snazzy	3	jaunty	not odd
+b-2	notcool	snazzy	4	notjaunty	not odd
+bb-1	notcool	notsnazzy	5	notjaunty	not odd
+bbb-1	notcool	notsnazzy	1	jaunty	rather odd
+bbb-2	notcool	notsnazzy	7	jaunty	rather odd
