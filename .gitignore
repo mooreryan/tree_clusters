@@ -11,6 +11,9 @@
 test_files/pola*
 test_files/rnr*
 test_files/OUTPUT*
+test_files/ignore
+
+.DS_Store
 
 .ruby-*
 
