@@ -17,7 +17,8 @@ test_files/ignore
 
 .ruby-*
 
-snazzy_clades*
+snazzy_clades.*
 
 # rspec failure tracking
 .rspec_status
+*.lock

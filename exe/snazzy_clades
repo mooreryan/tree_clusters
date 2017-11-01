@@ -1,0 +1,58 @@
+#!/usr/bin/env ruby
+
+Signal.trap("PIPE", "EXIT")
+
+require "tree_clusters"
+require "trollop"
+
+opts = Trollop.options do
+  version TreeClusters::VERSION
+
+  banner <<-EOS
+
+  Lala.
+
+  Options:
+  EOS
+
+  opt(:tree,
+      "Newick tree file",
+      type: :string)
+  opt(:mapping,
+      "Mapping file",
+      type: :string)
+
+  opt(:outdir,
+      "Output directory",
+      default: ".")
+  opt(:base,
+      "Basename for output",
+      default: "snazzy_clades")
+end
+
+TreeClusters.extend TreeClusters
+
+tree          = NewickTree.fromFile opts[:tree]
+metadata      = TreeClusters.read_mapping_file opts[:mapping]
+snazzy_clades = TreeClusters.snazzy_clades tree, metadata
+
+clades_fname  = File.join opts[:outdir],
+                          "#{opts[:base]}.snazzy_clades.txt"
+members_fname = File.join opts[:outdir],
+                          "#{opts[:base]}.snazzy_clades_clade_members.txt"
+
+File.open(clades_fname, "w") do |info_f|
+  File.open(members_fname, "w") do |members_f|
+    snazzy_clades.each_with_index do |(clade, info), idx|
+      clade_id = "clade_#{idx+1}___#{clade.name}"
+
+      info_f.puts [clade_id,
+                   info.count,
+                   info.map { |pair| pair.join("|")}].join "\t"
+
+      members_f.puts [clade_id,
+                      clade.all_leaves.count,
+                      clade.all_leaves].join "\t"
+    end
+  end
+end
