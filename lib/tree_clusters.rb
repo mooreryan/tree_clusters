@@ -149,11 +149,8 @@ module TreeClusters
     metadata.each do |md_cat, leaf2mdtag|
       already_checked = Set.new
       single_tag_clades = {}
-      p [md_cat, leaf2mdtag]
 
       clades.each do |clade|
-        p [clade.name, clade.all_leaves]
-
         assert clade.all_leaves.count > 1,
                "A clade cannot also be a leaf"
 
