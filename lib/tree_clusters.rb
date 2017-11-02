@@ -1,6 +1,8 @@
 require "abort_if"
 require "Newick"
 require "set"
+require "parse_fasta"
+require "shannon"
 require "tree_clusters/version"
 
 include AbortIf
@@ -24,6 +26,96 @@ end
 
 # Top level namespace of the Gem.
 module TreeClusters
+
+  # Given an ary of strings, find the most common string in the ary.
+  #
+  # @param bases [Array<String>] an array of strings
+  #
+  # @return most_common_str [String] the most common string in the ary.
+  #
+  # @example Upper case and lower case count as the same.
+  #   TreeClusters::consensus %w[a A C T] #=> "A"
+  # @example Ties take the one closest to the end
+  #   TreeClusters::consensus %w[a c T t C t g] #=> "T"
+  #
+  # @note Each string is upcase'd before frequencies are calculated.
+  def consensus bases
+    bases.
+      map(&:upcase).
+      group_by(&:itself).
+      sort_by { |_, bases| bases.count }.
+      reverse.
+      first.
+      first
+  end
+
+  def read_alignment aln_fname
+    leaf2attrs = TreeClusters::Attrs.new
+    aln_len = nil
+    ParseFasta::SeqFile.open(aln_fname).each_record do |rec|
+      leaf2attrs[rec.id] = { aln: rec.seq.chars }
+
+      aln_len ||= rec.seq.length
+
+      abort_unless aln_len == rec.seq.length,
+                   "Aln len mismatch for #{rec.id}"
+    end
+
+    leaf2attrs
+  end
+
+  def low_ent_cols leaves, leaf2attrs, entropy_cutoff
+    low_ent_cols = []
+    alns = leaf2attrs.attrs leaves, :aln
+    aln_cols = alns.transpose
+
+    aln_cols.each_with_index do |aln_col, aln_col_idx|
+      has_gaps = aln_col.any? { |aa| aa == "-" }
+      low_entropy =
+        Shannon::entropy(aln_col.join.upcase) <= entropy_cutoff
+
+      if !has_gaps && low_entropy
+        low_ent_cols << (aln_col_idx + 1)
+      end
+    end
+
+    Set.new low_ent_cols
+  end
+
+  def check_ids tree, mapping, aln
+    tree_ids = Set.new(NewickTree.fromFile(tree).taxa)
+
+    mapping_ids = Set.new
+    File.open(mapping, "rt").each_line.with_index do |line, idx|
+      unless idx.zero?
+        id, *rest = line.chomp.split
+
+        mapping_ids << id
+      end
+    end
+
+    aln_ids = Set.new
+    ParseFasta::SeqFile.open(aln).each_record do |rec|
+      aln_ids << rec.id
+    end
+
+    if !(tree_ids == mapping_ids && mapping_ids == aln_ids)
+      AbortIf::logger.error { "Seq IDs did not match in all input files" }
+
+      tree_ids = tree_ids.to_a.sort
+      mapping_ids = mapping_ids.to_a.sort
+      aln_ids = aln_ids.to_a.sort
+
+      AbortIf::logger.debug { ["tree_ids", tree_ids].join "\t" }
+      AbortIf::logger.debug { ["mapping_ids", mapping_ids].join "\t" }
+      AbortIf::logger.debug { ["aln_ids", aln_ids].join "\t" }
+
+      raise AbortIf::Exit
+    else
+      true
+    end
+  end
+
 
   # Given a NewickTree, return an array of all Clades in that tree.
   #

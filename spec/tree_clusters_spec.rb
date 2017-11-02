@@ -208,6 +208,116 @@ RSpec.describe TreeClusters do
     expect(TreeClusters::VERSION).not_to be nil
   end
 
+  describe "#consensus" do
+    it "returns the most frequent element of the collection" do
+      ary = %w[a A a A t t C C]
+
+      expect(klass.consensus ary).to eq "A"
+    end
+
+    context "with ties" do
+      it "returns the most frequent tied one closest to the end" do
+        ary = %w[a c T t C t g]
+
+        expect(klass.consensus ary).to eq "T"
+      end
+    end
+  end
+
+  let(:leaf2attrs) do
+    TreeClusters::Attrs[
+      "a-1"   => { aln: %w[A A A A] },
+      "a-2"   => { aln: %w[A A A T] },
+      "b-1"   => { aln: %w[C C C C] },
+      "b-2"   => { aln: %w[c c c T] },
+      "bb-1"  => { aln: %w[C C T G] },
+      "bbb-1" => { aln: %w[C C G g] },
+      "bbb-2" => { aln: %w[C G G G] },
+    ]
+  end
+
+  describe "#read_alignment" do
+    it "reads an alignment" do
+      aln_fname = File.join test_file_dir, "small.aln"
+
+      expect(klass.read_alignment aln_fname).to eq leaf2attrs
+    end
+
+    context "when the alns are not all same length" do
+      it "raises an error" do
+        aln_fname = File.join test_file_dir, "bad.aln"
+
+        expect { klass.read_alignment aln_fname }.
+          to raise_error AbortIf::Exit
+      end
+    end
+  end
+
+  describe "#check_ids" do
+    it "checks that all IDs match in the tree, mapping, and aln files" do
+      aln = File.join test_file_dir, "small.aln"
+      mapping = File.join test_file_dir, "small.mapping"
+      tree = File.join test_file_dir, "small.tre"
+
+      expect(klass.check_ids tree, mapping, aln).to be true
+    end
+
+    context "when mapping file has wrong ids" do
+      it "raises error" do
+        aln = File.join test_file_dir, "small.aln"
+        mapping = File.join test_file_dir, "small_mapping_bad_ids"
+        tree = File.join test_file_dir, "small.tre"
+
+        expect { klass.check_ids tree, mapping, aln }.
+          to raise_error AbortIf::Exit
+      end
+    end
+
+    context "when aln file has wrong ids" do
+      it "raises error" do
+        aln = File.join test_file_dir, "small_aln_bad_ids"
+        mapping = File.join test_file_dir, "small.mapping"
+        tree = File.join test_file_dir, "small.tre"
+
+        expect { klass.check_ids tree, mapping, aln }.
+          to raise_error AbortIf::Exit
+      end
+    end
+
+    context "when tree file has wrong ids" do
+      it "raises error" do
+        aln = File.join test_file_dir, "small.aln"
+        mapping = File.join test_file_dir, "small.mapping"
+        tree = File.join test_file_dir, "small_tree_bad_ids"
+
+        expect { klass.check_ids tree, mapping, aln }.
+          to raise_error AbortIf::Exit
+      end
+    end
+  end
+
+  describe "#low_ent_cols" do
+    it "returns low entropy columns given leaves and attrs" do
+      entropy_cutoff = 0
+      leaves = %w[b-1 b-2]
+
+      expect(klass.low_ent_cols leaves, leaf2attrs, entropy_cutoff).
+        to eq Set.new([1, 2, 3])
+    end
+
+    it "ignores columns if there is a gap regardless of entropy" do
+      leaf2attrs = TreeClusters::Attrs[
+        "a" => { aln: %w[A - T] },
+        "b" => { aln: %w[a a c] }
+      ]
+      leaves = %w[a b]
+      entropy_cutoff = 1
+
+      expect(klass.low_ent_cols leaves, leaf2attrs, entropy_cutoff).
+        to eq Set.new([1, 3])
+    end
+  end
+
   describe "#all_clades" do
     context "with block given" do
       it "yields all the clades" do
