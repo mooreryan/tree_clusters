@@ -1,0 +1,146 @@
+#!/usr/bin/env ruby
+
+Signal.trap("PIPE", "EXIT")
+
+require "tree_clusters"
+require "trollop"
+require "parse_fasta"
+require "shannon"
+require "fileutils"
+
+def get_low_ent_cols leaves, leaf2attrs, entropy_cutoff
+  low_ent_cols = []
+  alns = leaf2attrs.attrs leaves, :aln
+  aln_cols = alns.transpose
+
+  aln_cols.each_with_index do |aln_col, aln_col_idx|
+    has_gaps = aln_col.any? { |aa| aa == "-" }
+    low_entropy = Shannon::entropy(aln_col.join) <= entropy_cutoff
+
+    if !has_gaps && low_entropy
+      low_ent_cols << (aln_col_idx + 1)
+    end
+  end
+
+  Set.new low_ent_cols
+end
+
+opts = Trollop.options do
+  version TreeClusters::VERSION
+
+  banner <<-EOS
+
+  Note that if a clade's parent would be the root of the tree, no
+  columns will be subtracted when removing the parent columns as it
+  would be the entire alignment.
+
+  Options:
+  EOS
+
+  opt(:tree,
+      "Newick tree file",
+      type: :string)
+  opt(:mapping,
+      "Mapping file",
+      type: :string)
+  opt(:aln,
+      "Alignment file",
+      type: :string)
+
+  opt(:entropy_cutoff,
+      "Cutoff to consider a column low entropy",
+      default: 0.0)
+  opt(:clade_size_cutoff,
+      "Consider only clades with at least this many leaves",
+      default: 1)
+
+  opt(:outdir,
+      "Output directory",
+      default: ".")
+  opt(:base,
+      "Basename for output",
+      default: "snazzy_clades")
+end
+
+FileUtils.mkdir_p opts[:outdir]
+
+TreeClusters.extend TreeClusters
+
+tree          = NewickTree.fromFile opts[:tree]
+metadata      = TreeClusters.read_mapping_file opts[:mapping]
+snazzy_clades = TreeClusters.snazzy_clades tree, metadata
+
+aln_len = nil
+leaf2attrs = TreeClusters::Attrs.new
+ParseFasta::SeqFile.open(opts[:aln]).each_record do |rec|
+  leaf2attrs[rec.id] = { aln: rec.seq.chars }
+
+  aln_len ||= rec.seq.length
+
+  abort_unless aln_len == rec.seq.length,
+               "Aln len mismatch for #{rec.id}"
+end
+
+
+clades_fname  = File.join opts[:outdir],
+                          "#{opts[:base]}.snazzy_clades.txt"
+members_fname = File.join opts[:outdir],
+                          "#{opts[:base]}.snazzy_clades_clade_members.txt"
+all_key_cols_fname = File.join opts[:outdir],
+                               "#{opts[:base]}.snazzy_clades_key_cols.txt"
+key_cols_fname = File.join opts[:outdir],
+                               "#{opts[:base]}.snazzy_clades_key_cols.txt"
+key_cols_minus_parent_cols_fname = File.join opts[:outdir],
+                               "#{opts[:base]}.snazzy_clades_key_cols_minus_parent_cols.txt"
+key_cols_minus_sibling_cols_fname = File.join opts[:outdir],
+                               "#{opts[:base]}.snazzy_clades_key_cols_minus_sibling_cols.txt"
+
+info_f                        = File.open(clades_fname, "w")
+clade_members_f               = File.open(members_fname, "w")
+key_cols_f                    = File.open(key_cols_fname, "w")
+key_cols_minus_parent_cols_f  = File.open(key_cols_minus_parent_cols_fname, "w")
+key_cols_minus_sibling_cols_f = File.open(key_cols_minus_sibling_cols_fname, "w")
+
+begin
+  # info is { metadata_category => metadata_tag , ... }
+  snazzy_clades.each_with_index do |(clade, info), idx|
+    clade_id = "clade_#{idx+1}___#{clade.name}"
+
+    info_f.puts [clade_id,
+                 info.count,
+                 info.map { |pair| pair.join("|")}].join "\t"
+
+    clade_members_f.puts [clade_id,
+                          clade.all_leaves.count,
+                          clade.all_leaves].join "\t"
+
+    key_cols_all_leaves =
+      get_low_ent_cols clade.all_leaves, leaf2attrs, opts[:entropy_cutoff]
+    key_cols_all_sibling_leaves =
+      get_low_ent_cols clade.all_sibling_leaves, leaf2attrs, opts[:entropy_cutoff]
+    key_cols_parent_leaves =
+      get_low_ent_cols clade.parent_leaves, leaf2attrs, opts[:entropy_cutoff]
+
+    key_cols_all_minus_sibling =
+      key_cols_all_leaves - key_cols_all_sibling_leaves
+    key_cols_all_minus_parent =
+      key_cols_all_leaves - key_cols_parent_leaves
+
+    key_cols_f.puts [clade_id,
+                     key_cols_all_leaves.count,
+                     key_cols_all_leaves.to_a].join "\t"
+    key_cols_minus_parent_cols_f.puts [clade_id,
+                                       key_cols_all_minus_parent.count,
+                                       key_cols_all_minus_parent.to_a].join "\t"
+    key_cols_minus_sibling_cols_f.puts [clade_id,
+                                        key_cols_all_minus_sibling.count,
+                                        key_cols_all_minus_sibling.to_a].join "\t"
+
+  end
+ensure
+  info_f.close
+  clade_members_f.close
+  key_cols_f.close
+  key_cols_minus_parent_cols_f.close
+  key_cols_minus_sibling_cols_f.close
+end

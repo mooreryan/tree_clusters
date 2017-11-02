@@ -19,6 +19,8 @@ test_files/ignore
 
 snazzy_clades.*
 
+TEST
+
 # rspec failure tracking
 .rspec_status
 *.lock

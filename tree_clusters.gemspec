@@ -30,5 +30,7 @@ Gem::Specification.new do |spec|
 
   spec.add_runtime_dependency "abort_if", "~> 0.2.0"
   spec.add_runtime_dependency "newick-ruby", "~> 1.0", ">= 1.0.4"
+  spec.add_runtime_dependency "parse_fasta", "~> 2.3"
+  spec.add_runtime_dependency "shannon", "~> 0.1", ">= 0.1.1"
   spec.add_runtime_dependency "trollop", "~> 2.1", ">= 2.1.2"
 end
