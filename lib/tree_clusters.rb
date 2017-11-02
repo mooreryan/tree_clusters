@@ -256,7 +256,7 @@ module TreeClusters
       end
     end
 
-    attrs
+      [attr_names, attrs]
   end
 
   # A Hash table for genome/leaf/taxa attributes

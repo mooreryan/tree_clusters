@@ -536,8 +536,10 @@ RSpec.describe TreeClusters do
 
   describe "#read_attrs_file" do
     it "reads the attributes file" do
+      attr_categories = %w[color fruta tamaño]
+
       expect(klass.read_attrs_file small_attrs_file).
-        to eq small_leaf2attrs
+        to eq [attr_categories, small_leaf2attrs]
     end
   end
 
