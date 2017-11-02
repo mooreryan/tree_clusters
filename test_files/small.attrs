@@ -1,0 +1,17 @@
+name	attr name	attr val
+a-1	fruta	manzana
+a-1	fruta	pera
+a-1	color	rojo
+a-2	fruta	manzana
+a-2	color	azul
+a-2	fruta	pera
+a-2	color	rojo
+b-1	fruta	pera
+b-1	color	blanco
+b-2	color	blanco
+bb-1	color	blanco
+bbb-1	color	blanco
+bbb-2	color	blanco
+bbb-2	color	gris
+bbb-1	tamaño	pequeña
+bbb-2	tamaño	pequeña

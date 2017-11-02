@@ -220,6 +220,45 @@ module TreeClusters
     metadata
   end
 
+  def read_attrs_file fname
+
+    attr_names = Set.new
+    File.open(fname, "rt").each_line.with_index do |line, idx|
+      unless idx.zero?
+        _, attr_name, _ = line.chomp.split "\t"
+
+        attr_names << attr_name
+      end
+    end
+
+    attr_names = attr_names.to_a.sort
+
+    attrs = TreeClusters::Attrs.new
+
+    File.open(fname, "rt").each_line.with_index do |line, idx|
+      unless idx.zero?
+        leaf, attr_name, attr_val = line.chomp.split "\t"
+
+        if attrs.has_key? leaf
+          if attrs[leaf].has_key? attr_name
+            attrs[leaf][attr_name] << attr_val
+          else
+            attrs[leaf][attr_name] = Set.new([attr_val])
+          end
+        else
+          attrs[leaf] = {}
+
+          attr_names.each do |name|
+            attrs[leaf][name] = Set.new
+          end
+          attrs[leaf][attr_name] << attr_val
+        end
+      end
+    end
+
+    attrs
+  end
+
   # A Hash table for genome/leaf/taxa attributes
   class Attrs < Hash
 

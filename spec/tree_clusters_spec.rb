@@ -1,3 +1,4 @@
+# coding: utf-8
 require "spec_helper"
 
 def read_all_clusters fname
@@ -500,6 +501,43 @@ RSpec.describe TreeClusters do
     it "returns an instance of Attrs" do
       expect(klass.read_mapping_file mapping_file).
         to be_a TreeClusters::Attrs
+    end
+  end
+
+  let(:small_attrs_file) do
+    File.join test_file_dir, "small.attrs"
+  end
+  let(:small_leaf2attrs) do
+    # Note: can handle other chars like ñ
+    TreeClusters::Attrs[
+      "a-1"   => { "color"  => Set.new(%w[rojo]),
+                   "fruta"  => Set.new(%w[manzana pera]),
+                   "tamaño" => Set.new },
+      "a-2"   => { "color"  => Set.new(%w[azul rojo]),
+                   "fruta"  => Set.new(%w[manzana pera]),
+                   "tamaño" => Set.new },
+      "b-1"   => { "color"  => Set.new(%w[blanco]),
+                   "fruta"  => Set.new(%w[pera]),
+                   "tamaño" => Set.new },
+      "b-2"   => { "color"  => Set.new(%w[blanco]),
+                   "fruta"  => Set.new,
+                   "tamaño" => Set.new },
+      "bb-1"  => { "color"  => Set.new(%w[blanco]),
+                   "fruta"  => Set.new,
+                   "tamaño" => Set.new },
+      "bbb-1" => { "color"  => Set.new(%w[blanco]),
+                   "fruta"  => Set.new,
+                   "tamaño" => Set.new(%w[pequeña]) },
+      "bbb-2" => { "color"  => Set.new(%w[blanco gris]),
+                   "fruta"  => Set.new,
+                   "tamaño" => Set.new(%w[pequeña]) },
+    ]
+  end
+
+  describe "#read_attrs_file" do
+    it "reads the attributes file" do
+      expect(klass.read_attrs_file small_attrs_file).
+        to eq small_leaf2attrs
     end
   end
 
