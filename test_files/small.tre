@@ -1,1 +1,1 @@
-((a-1, a-2)cluster_A, ((b-1, b-2)cluster_B1, (bb-1, (bbb-1, bbb-2)cluster_B3)cluster_B2)cluster_B)cluster_C;
+(('a-1', 'a-2')cluster_A, (("b-1", b-2)cluster_B1, (bb-1, (bbb-1, bbb-2)cluster_B3)cluster_B2)cluster_B)cluster_C;

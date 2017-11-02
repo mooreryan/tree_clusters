@@ -21,6 +21,8 @@ snazzy_clades.*
 
 TEST
 
+time.html
+
 # rspec failure tracking
 .rspec_status
 *.lock

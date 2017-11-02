@@ -19,9 +19,42 @@ opts = Trollop.options do
 
   banner <<-EOS
 
-  Note that if a clade's parent would be the root of the tree, no
-  columns will be subtracted when removing the parent columns as it
-  would be the entire alignment.
+
+  Checking IDs
+  ------------
+
+  IDs for the sequences must match between the three input files.
+
+  The tree file is allowed to have quoted taxa names, but the mapping
+  file and alignment file are not.
+
+  If your alignment file has spaces in the name, the ID part of the
+  header (i.e., the part up until the space) must match with the
+  sequence IDs in the tree and the mapping file.
+
+  Example: This would be okay.
+
+  tree file:
+    ('genome_A', 'genome_B');
+
+  aln file:
+    >genome_A apple pie
+    AAAAA
+    >genome_B brown sugar
+    AATTA
+
+  mapping file:
+    name	coolness
+    genome_A	cool
+    genome_B	notcool
+
+
+  Subtracting parent nodes
+  ------------------------
+
+  If a clade's parent would be the root of the tree, no columns will
+  be subtracted when removing the parent columns as it would be the
+  entire alignment.
 
   Options:
   EOS

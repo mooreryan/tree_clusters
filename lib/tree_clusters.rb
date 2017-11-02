@@ -22,6 +22,10 @@ class NewickTree
     end
     return clades
   end
+
+  def unquoted_taxa
+    self.taxa.map { |str| str.tr %q{"'}, "" }
+  end
 end
 
 # Top level namespace of the Gem.
@@ -82,8 +86,10 @@ module TreeClusters
     Set.new low_ent_cols
   end
 
+  # @note If there are quoted names in the tree file, they are
+  #   unquoted first.
   def check_ids tree, mapping, aln
-    tree_ids = Set.new(NewickTree.fromFile(tree).taxa)
+    tree_ids = Set.new(NewickTree.fromFile(tree).unquoted_taxa)
 
     mapping_ids = Set.new
     File.open(mapping, "rt").each_line.with_index do |line, idx|
@@ -143,8 +149,11 @@ module TreeClusters
     metadata.each do |md_cat, leaf2mdtag|
       already_checked = Set.new
       single_tag_clades = {}
+      p [md_cat, leaf2mdtag]
 
       clades.each do |clade|
+        p [clade.name, clade.all_leaves]
+
         assert clade.all_leaves.count > 1,
                "A clade cannot also be a leaf"
 
@@ -173,7 +182,7 @@ module TreeClusters
       end
 
       single_tag_clades.each do |clade, md_tag|
-        non_clade_leaves = tree.taxa - clade.all_leaves
+        non_clade_leaves = tree.unquoted_taxa - clade.all_leaves
 
         non_clade_leaves_with_this_md_tag = non_clade_leaves.map do |leaf|
           [leaf, leaf2mdtag[leaf]]
@@ -288,10 +297,15 @@ module TreeClusters
                   :single_tag_info,
                   :all_tags
 
+    # @note If a node name is quoted, then those quotes are removed
+    #   first.
+    #
     # @param node [NewickNode] a NewickNode from a NewickTree
     # @param tree [NewickTree] a NewickTree
     def initialize node, tree, metadata=nil
-      @name = node.name
+      tree_taxa = tree.unquoted_taxa
+
+      @name = unquote node.name
       @all_leaves = descendant_leaves node
 
       if (children = node.children).count == 2
@@ -317,10 +331,10 @@ module TreeClusters
       @parent_leaves = descendant_leaves parent
 
       @other_leaves =
-        Object::Set.new(tree.taxa) - Object::Set.new(all_leaves)
+        Object::Set.new(tree_taxa) - Object::Set.new(all_leaves)
 
       @non_parent_leaves =
-        Object::Set.new(tree.taxa) - Object::Set.new(parent_leaves)
+        Object::Set.new(tree_taxa) - Object::Set.new(parent_leaves)
 
       if metadata
         @metadata = metadata
@@ -345,7 +359,8 @@ module TreeClusters
         self.each_sibling_leaf_set == clade.each_sibling_leaf_set &&
         self.parent_leaves == clade.parent_leaves &&
         self.other_leaves == clade.other_leaves &&
-        self.single_tag_info == clade.single_tag_info
+        self.single_tag_info == clade.single_tag_info &&
+        self.all_tags == clade.all_tags
       )
     end
 
@@ -379,14 +394,19 @@ module TreeClusters
 
     def descendant_leaves node
       if node.leaf?
-        [node.name]
+        [unquote(node.name)]
       else
         node.
           descendants.
           flatten.
           uniq.
-          select { |node| node.leaf? }.map(&:name)
+          select { |node| node.leaf? }.
+          map { |node| unquote(node.name) }
       end
+    end
+
+    def unquote str
+      str.tr %q{"'}, ""
     end
   end
 end
