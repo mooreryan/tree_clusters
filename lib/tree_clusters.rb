@@ -201,6 +201,73 @@ module TreeClusters
     snazzy_clades
   end
 
+  def snazzy_info tree, metadata
+    snazzy_info = {}
+
+    clades = self.
+             all_clades(tree, metadata).
+             sort_by { |clade| clade.all_leaves.count }.
+             reverse
+
+    # Non snazzy clades have a value of nil, so set all to nil and the
+    # snazzy ones will be overwritten.
+    clades.each do |clade|
+      snazzy_info[clade] = nil
+    end
+
+    metadata.each do |md_cat, leaf2mdtag|
+      already_checked = Set.new
+      single_tag_clades = {}
+
+      clades.each do |clade|
+        assert clade.all_leaves.count > 1,
+               "A clade cannot also be a leaf"
+
+        unless clade.all_leaves.all? do |leaf|
+                 already_checked.include? leaf
+               end
+          md_tags = clade.all_leaves.map do |leaf|
+            assert leaf2mdtag.has_key?(leaf),
+                   "leaf #{leaf} is missing from leaf2mdtag ht"
+
+            leaf2mdtag[leaf]
+          end
+
+          # this clade is mono-phyletic w.r.t. this metadata category.
+          if md_tags.uniq.count == 1
+            clade.all_leaves.each do |leaf|
+              already_checked << leaf
+            end
+
+            assert !single_tag_clades.has_key?(clade),
+                   "clade #{clade.name} is repeated in single_tag_clades for #{md_cat}"
+
+            single_tag_clades[clade] = md_tags.first
+          end
+        end
+      end
+
+      single_tag_clades.each do |clade, md_tag|
+        non_clade_leaves = tree.unquoted_taxa - clade.all_leaves
+
+        non_clade_leaves_with_this_md_tag = non_clade_leaves.map do |leaf|
+          [leaf, leaf2mdtag[leaf]]
+        end.select { |ary| ary.last == md_tag }
+
+        is_snazzy_clade = non_clade_leaves_with_this_md_tag.count.zero?
+        if is_snazzy_clade
+          if !snazzy_info[clade].nil?
+            snazzy_info[clade][md_cat] = md_tag
+          else
+            snazzy_info[clade] = { md_cat => md_tag }
+          end
+        end
+      end
+    end
+
+    snazzy_info
+  end
+
   def read_mapping_file fname
     md_cat_names = nil
     metadata = TreeClusters::Attrs.new

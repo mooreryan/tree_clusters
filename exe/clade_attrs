@@ -1,0 +1,229 @@
+#!/usr/bin/env ruby
+
+Signal.trap("PIPE", "EXIT")
+
+require "tree_clusters"
+require "trollop"
+require "parse_fasta"
+require "shannon"
+require "fileutils"
+
+TreeClusters.extend TreeClusters
+
+def puts_info outf, clade_id, attr_cat, attr_set
+  outf.puts [clade_id, attr_cat, attr_set.to_a].join "\t"
+end
+
+opts = Trollop.options do
+  version TreeClusters::VERSION
+
+  banner <<-EOS
+
+
+  Checking IDs
+  ------------
+
+  IDs for the sequences must match between the three input files.
+
+  The tree file is allowed to have quoted taxa names, but the mapping
+  file and alignment file are not.
+
+  If your alignment file has spaces in the name, the ID part of the
+  header (i.e., the part up until the space) must match with the
+  sequence IDs in the tree and the mapping file.
+
+  Example: This would be okay.
+
+  tree file:
+    ('genome_A', 'genome_B');
+
+  aln file:
+    >genome_A apple pie
+    AAAAA
+    >genome_B brown sugar
+    AATTA
+
+  mapping file:
+    name	coolness
+    genome_A	cool
+    genome_B	notcool
+
+
+  Subtracting parent nodes
+  ------------------------
+
+  If a clade's parent would be the root of the tree, no columns will
+  be subtracted when removing the parent columns as it would be the
+  entire alignment.
+
+  Options:
+  EOS
+
+  opt(:tree,
+      "Newick tree file",
+      type: :string)
+  opt(:mapping,
+      "Mapping file",
+      type: :string)
+  opt(:attrs,
+      "Attributes file",
+      type: :string)
+
+  opt(:clade_size_cutoff,
+      "Consider only clades with at least this many leaves",
+      default: 1)
+
+  opt(:outdir,
+      "Output directory",
+      default: ".")
+  opt(:base,
+      "Basename for output",
+      default: "clade_attrs")
+end
+
+abort_if opts[:tree].nil?,
+         "--tree is a required arg"
+abort_if opts[:mapping].nil?,
+         "--mapping is a required arg"
+abort_if opts[:attrs].nil?,
+         "--attrs is a required arg"
+
+abort_unless_file_exists opts[:tree]
+abort_unless_file_exists opts[:mapping]
+abort_unless_file_exists opts[:attrs]
+
+# TODO check IDs when attrs is not a fasta file
+# TreeClusters.check_ids opts[:tree], opts[:mapping], opts[:attrs]
+
+abort_unless opts[:clade_size_cutoff] >= 1,
+             "--clade-size-cutoff must be >= 1"
+
+FileUtils.mkdir_p opts[:outdir]
+
+tree                   = NewickTree.fromFile opts[:tree]
+metadata               = TreeClusters.read_mapping_file opts[:mapping]
+snazzy_info            = TreeClusters.snazzy_info tree, metadata
+attr_names, leaf2attrs = TreeClusters.read_attrs_file opts[:attrs]
+
+ext_base = "clade_attrs"
+
+clades_fname  =
+  File.join opts[:outdir],
+            "#{opts[:base]}.#{ext_base}.txt"
+members_fname =
+  File.join opts[:outdir],
+            "#{opts[:base]}.#{ext_base}_clade_members.txt"
+attrs_fname =
+  File.join opts[:outdir],
+            "#{opts[:base]}.#{ext_base}_attrs_union.txt"
+attrs_intersection_fname =
+  File.join opts[:outdir],
+            "#{opts[:base]}.#{ext_base}_attrs_intersection.txt"
+attrs_minus_parent_attrs_fname =
+  File.join opts[:outdir],
+            "#{opts[:base]}.#{ext_base}_attrs_minus_parent_attrs.txt"
+attrs_minus_sibling_attrs_fname =
+  File.join opts[:outdir],
+            "#{opts[:base]}.#{ext_base}_attrs_minus_sibling_attrs.txt"
+attrs_minus_other_attrs_fname =
+  File.join opts[:outdir],
+            "#{opts[:base]}.#{ext_base}_attrs_minus_other_attrs.txt"
+
+
+info_f =
+  File.open(clades_fname, "w")
+clade_members_f =
+  File.open(members_fname, "w")
+attrs_f =
+  File.open(attrs_fname, "w")
+attrs_intersection_f =
+  File.open(attrs_intersection_fname, "w")
+attrs_minus_parent_attrs_f =
+  File.open(attrs_minus_parent_attrs_fname, "w")
+attrs_minus_sibling_attrs_f =
+  File.open(attrs_minus_sibling_attrs_fname, "w")
+attrs_minus_other_attrs_f =
+  File.open(attrs_minus_other_attrs_fname, "w")
+
+
+begin
+  # info is { metadata_category => metadata_tag , ... }
+  snazzy_info.each_with_index do |(clade, info), idx|
+    assert clade.all_leaves.all? { |leaf| leaf2attrs.has_key? leaf },
+           "Not all leaves are present in the leaf2attrs hash table"
+
+    clade_id = "clade_#{idx+1}___#{clade.name}"
+
+    is_snazzy = info.nil? ? false : true
+    snazzy = is_snazzy ? "snazzy" : "not_snazzy"
+
+    if is_snazzy
+      info_f.puts [clade_id,
+                   info.count,
+                   info.map { |pair| pair.join("|")}].join "\t"
+    else
+      info_f.puts [clade_id,
+                   0,
+                   "not_snazzy"].join "\t"
+    end
+
+    clade_members_f.puts [clade_id,
+                          clade.all_leaves.count,
+                          clade.all_leaves].join "\t"
+
+    attr_names.each do |attr_category|
+      attrs_all_leaves =
+        leaf2attrs.attrs clade.all_leaves, attr_category
+
+      attrs_all_sibling_leaves =
+        leaf2attrs.attrs clade.all_sibling_leaves,
+                         attr_category
+      attrs_parent_leaves =
+        leaf2attrs.attrs clade.parent_leaves,
+                         attr_category
+      attrs_other_leaves =
+        leaf2attrs.attrs clade.other_leaves,
+                         attr_category
+
+      attrs_all_minus_parent =
+        attrs_all_leaves.union - attrs_parent_leaves.union
+      attrs_all_minus_sibling =
+        attrs_all_leaves.union - attrs_all_sibling_leaves.union
+      attrs_all_minus_other =
+        attrs_all_leaves.union - attrs_other_leaves.union
+
+
+      puts_info attrs_f,
+                clade_id,
+                attr_category,
+                attrs_all_leaves.union
+
+      puts_info attrs_intersection_f,
+                clade_id,
+                attr_category,
+                attrs_all_leaves.intersection
+
+      puts_info attrs_minus_parent_attrs_f,
+                clade_id,
+                attr_category,
+                attrs_all_minus_parent
+
+      puts_info attrs_minus_sibling_attrs_f,
+                clade_id,
+                attr_category,
+                attrs_all_minus_sibling
+
+      puts_info attrs_minus_other_attrs_f,
+                clade_id,
+                attr_category,
+                attrs_all_minus_other
+    end
+  end
+ensure
+  info_f.close
+  clade_members_f.close
+  attrs_f.close
+  attrs_minus_parent_attrs_f.close
+  attrs_minus_sibling_attrs_f.close
+  attrs_minus_other_attrs_f.close
+end

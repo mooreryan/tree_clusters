@@ -458,6 +458,24 @@ RSpec.describe TreeClusters do
         "oddness"    => "quite odd" },
     }
   end
+  # Like snazzy clades, except that it has an entry for every clade
+  let(:small_tree_snazzy_info) do
+    { "cluster_B3" =>
+      { "oddness"    => "rather odd" },
+
+      "cluster_B2" =>
+      { "snazzyness" => "notsnazzy" },
+
+      "cluster_B1" => nil,
+
+      "cluster_B" =>
+      { "coolness"   => "notcool" },
+
+      "cluster_A" =>
+      { "coolness"   => "cool",
+        "oddness"    => "quite odd" },
+    }
+  end
   let(:small_tree_all_tags) do
     [  # B3
       { "coolness"   => Set.new(["notcool"]),
@@ -556,6 +574,18 @@ RSpec.describe TreeClusters do
                   to_h
 
       expect(info_hash).to eq small_tree_snazzy_clades
+    end
+  end
+
+  describe "#snazzy_info" do
+    it "returns snazzy info for all clades" do
+      info = klass.snazzy_info small_tree, metadata
+
+      info_hash = info.
+                  map { |clade, snazzy_info| [clade.name, snazzy_info] }.
+                  to_h
+
+      expect(info_hash).to eq small_tree_snazzy_info
     end
   end
 
