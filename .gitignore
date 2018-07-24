@@ -28,3 +28,5 @@ todo.txt
 # rspec failure tracking
 .rspec_status
 *.lock
+
+.idea
