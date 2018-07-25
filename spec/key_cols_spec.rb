@@ -59,7 +59,7 @@ RSpec.describe "key_cols program" do
     before :each do
       FileUtils.rm_r(outdir) if Dir.exist?(outdir)
 
-      `#{cmd} 2> /dev/null`
+      puts `#{cmd}`
     end
 
     after :each do

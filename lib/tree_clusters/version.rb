@@ -1,3 +1,3 @@
 module TreeClusters
-  VERSION = "0.8.3-1"
+  VERSION = "0.8.3"
 end

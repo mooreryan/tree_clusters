@@ -32,6 +32,12 @@ class NewickTree
   end
 end
 
+class NewickNode
+  def all_leaves
+    self.leaves.map { |n| n.name.tr  %q{"'}, "" }
+  end
+end
+
 # Top level namespace of the Gem.
 module TreeClusters
   PROJ_ROOT = File.join __dir__, ".."

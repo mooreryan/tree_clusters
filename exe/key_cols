@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+# TODO the block variables called "clade" aren't actually instances of the TreeClusters::Clade class.  It's kind of confusing.
+
 Signal.trap("PIPE", "EXIT")
 
 require "tree_clusters"
@@ -53,6 +55,8 @@ The key_cols program
   Hi.  My name is key_cols.  If you give me a Newick tree file and an
   alignment file (fasta format), I will tell you key columns for all
   clades/clusters that have them.
+
+  Version: v#{TreeClusters::VERSION}
 
 Overview
 --------
@@ -150,10 +154,6 @@ FileUtils.mkdir_p opts[:outdir]
 AbortIf.logger.info { "Reading tree" }
 tree = NewickTree.fromFile opts[:tree]
 
-AbortIf.logger.info { "Getting taxa" }
-taxa = tree.taxa
-
-
 AbortIf.logger.info { "Reading alignment" }
 leaf2attrs = TreeClusters.read_alignment opts[:aln]
 
@@ -181,7 +181,11 @@ clade_sizes  = {}
 change_these_names = Set.new
 
 def all_clades_helper tree
-  TreeClusters.all_clades(tree).sort_by { |cl| cl.all_leaves.count }.reverse
+  # TreeClusters.all_clades(tree).sort_by { |cl| cl.all_leaves.count }.reverse
+  tree.clade_nodes.
+      reverse.
+      sort_by { |node| node.all_leaves.count }.
+      reverse
 end
 
 AbortIf.logger.info { "Processing clades" }
@@ -235,7 +239,7 @@ begin
 
     if change_these_names.include? clade_id
       # This will change the node in the original NewickTree
-      clade.node.name = "'#{clade_id}'"
+      clade.name = "'#{clade_id}'"
     end
   end
 
