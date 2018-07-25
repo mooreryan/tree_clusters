@@ -92,6 +92,21 @@ RSpec.describe TreeClusters do
     ]
   end
 
+  let(:expected_nodes) do
+    [
+      tree.findNode("cluster19", exact: true),
+      tree.findNode("cluster22", exact: true),
+      tree.findNode("cluster11", exact: true),
+      tree.findNode("cluster14", exact: true),
+      tree.findNode("cluster7",  exact: true),
+      tree.findNode("cluster1",  exact: true),
+      tree.findNode("cluster4",  exact: true),
+      tree.findNode("cluster6",  exact: true),
+      tree.findNode("cluster10", exact: true),
+      tree.findNode("cluster16", exact: true),
+    ]
+  end
+
   let(:expected_names) do
     ["cluster19",
      "cluster22",
@@ -316,6 +331,28 @@ RSpec.describe TreeClusters do
 
       expect(klass.low_ent_cols leaves, leaf2attrs, entropy_cutoff).
         to eq Set.new([1, 3])
+    end
+  end
+
+  describe "#low_ent_cols_with_bases" do
+    it "returns low entropy columns given leaves and attrs" do
+      entropy_cutoff = 0
+      leaves = %w[b-1 b-2]
+
+      expect(klass.low_ent_cols_with_bases leaves, leaf2attrs, entropy_cutoff).
+          to eq Set.new([[1, ["C"]], [2, ["C"]], [3, ["C"]]])
+    end
+
+    it "ignores columns if there is a gap regardless of entropy" do
+      leaf2attrs = TreeClusters::Attrs[
+          "a" => { aln: %w[A - T] },
+          "b" => { aln: %w[a a c] }
+      ]
+      leaves = %w[a b]
+      entropy_cutoff = 1
+
+      expect(klass.low_ent_cols_with_bases leaves, leaf2attrs, entropy_cutoff).
+          to eq Set.new([[1, ["A"]], [3, ["C", "T"]]])
     end
   end
 
@@ -610,6 +647,11 @@ RSpec.describe TreeClusters do
           expect(small_tree_clades.map(&:all_tags)).
             to eq small_tree_all_tags
         end
+      end
+
+      it "generates clade with the proper node" do
+        expect(expected_clades.map(&:node)).
+          to eq expected_nodes
       end
 
       it "generates clade with proper name" do

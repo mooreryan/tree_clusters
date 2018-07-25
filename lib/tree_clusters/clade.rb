@@ -1,7 +1,8 @@
 module TreeClusters
   # Represents a clade in a NewickTree
   class Clade
-    attr_accessor :name,
+    attr_accessor :node,
+                  :name,
                   :all_leaves,
                   :left_leaves,
                   :right_leaves,
@@ -18,10 +19,11 @@ module TreeClusters
     #
     # @param node [NewickNode] a NewickNode from a NewickTree
     # @param tree [NewickTree] a NewickTree
-    def initialize node, tree, metadata=nil
+    def initialize node, tree, metadata = nil
       tree_taxa = tree.unquoted_taxa
 
-      @name = unquote node.name
+      @node = node
+      @name       = unquote node.name
       @all_leaves = descendant_leaves node
 
       if (children = node.children).count == 2
@@ -37,7 +39,7 @@ module TreeClusters
       #        "Node #{node.name} has more than one sibling."
 
       @each_sibling_leaf_set = siblings.
-                               map { |node| descendant_leaves node }
+          map {|node| descendant_leaves node}
 
       @all_sibling_leaves = @each_sibling_leaf_set.flatten.uniq
 
@@ -47,14 +49,14 @@ module TreeClusters
       @parent_leaves = descendant_leaves parent
 
       @other_leaves =
-        Object::Set.new(tree_taxa) - Object::Set.new(all_leaves)
+          Object::Set.new(tree_taxa) - Object::Set.new(all_leaves)
 
       @non_parent_leaves =
-        Object::Set.new(tree_taxa) - Object::Set.new(parent_leaves)
+          Object::Set.new(tree_taxa) - Object::Set.new(parent_leaves)
 
       if metadata
-        @metadata = metadata
-        @all_tags ||= get_all_tags
+        @metadata        = metadata
+        @all_tags        ||= get_all_tags
         @single_tag_info ||= get_single_tag_info
       else
         @single_tag_info = nil
@@ -67,16 +69,16 @@ module TreeClusters
     # well.
     def == clade
       (
-        self.name == clade.name &&
-        self.all_leaves == clade.all_leaves &&
-        self.left_leaves == clade.left_leaves &&
-        self.right_leaves == clade.right_leaves &&
-        self.all_sibling_leaves == clade.all_sibling_leaves &&
-        self.each_sibling_leaf_set == clade.each_sibling_leaf_set &&
-        self.parent_leaves == clade.parent_leaves &&
-        self.other_leaves == clade.other_leaves &&
-        self.single_tag_info == clade.single_tag_info &&
-        self.all_tags == clade.all_tags
+      self.name == clade.name &&
+          self.all_leaves == clade.all_leaves &&
+          self.left_leaves == clade.left_leaves &&
+          self.right_leaves == clade.right_leaves &&
+          self.all_sibling_leaves == clade.all_sibling_leaves &&
+          self.each_sibling_leaf_set == clade.each_sibling_leaf_set &&
+          self.parent_leaves == clade.parent_leaves &&
+          self.other_leaves == clade.other_leaves &&
+          self.single_tag_info == clade.single_tag_info &&
+          self.all_tags == clade.all_tags
       )
     end
 
@@ -99,7 +101,7 @@ module TreeClusters
         tag_info = self.all_leaves.map do |leaf|
           assert name2tag.has_key?(leaf),
                  "leaf #{leaf} is not present in name2tag ht for " +
-                 "md_cat #{md_cat}"
+                     "md_cat #{md_cat}"
 
           name2tag[leaf]
         end
@@ -113,11 +115,11 @@ module TreeClusters
         [unquote(node.name)]
       else
         node.
-          descendants.
-          flatten.
-          uniq.
-          select { |node| node.leaf? }.
-          map { |node| unquote(node.name) }
+            descendants.
+            flatten.
+            uniq.
+            select {|node| node.leaf?}.
+            map {|node| unquote(node.name)}
       end
     end
 

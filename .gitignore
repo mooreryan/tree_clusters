@@ -30,3 +30,5 @@ todo.txt
 *.lock
 
 .idea
+
+exe/key_cols2

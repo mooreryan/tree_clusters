@@ -89,6 +89,25 @@ module TreeClusters
     Set.new low_ent_cols
   end
 
+  # Like low_ent_cols method but also returns the bases at the positions.
+  def low_ent_cols_with_bases leaves, leaf2attrs, entropy_cutoff
+    low_ent_cols = []
+    alns = leaf2attrs.attrs leaves, :aln
+    aln_cols = alns.transpose
+
+    aln_cols.each_with_index do |aln_col, aln_col_idx|
+      has_gaps = aln_col.any? { |aa| aa == "-" }
+      low_entropy =
+          Shannon::entropy(aln_col.join.upcase) <= entropy_cutoff
+
+      if !has_gaps && low_entropy
+        low_ent_cols << [(aln_col_idx + 1), aln_col.map(&:upcase).uniq.sort]
+      end
+    end
+
+    Set.new low_ent_cols
+  end
+
   # @note If there are quoted names in the tree file, they are
   #   unquoted first.
   def check_ids tree, mapping, aln
