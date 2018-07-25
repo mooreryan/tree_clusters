@@ -1,0 +1,5 @@
+clade_1___cluster_B	5	b-1	b-2	bb-1	bbb-1	bbb-2
+clade_2___cluster_B2	3	bb-1	bbb-1	bbb-2
+clade_3___cluster_A	2	a-1	a-2
+clade_4___cluster_B1	2	b-1	b-2
+clade_5___cluster_B3	2	bbb-1	bbb-2

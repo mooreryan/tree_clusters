@@ -27,12 +27,14 @@ class NewickTree
   end
 
   def unquoted_taxa
+    # @note self.taxa calls taxa method on the root of the tree.
     self.taxa.map { |str| str.tr %q{"'}, "" }
   end
 end
 
 # Top level namespace of the Gem.
 module TreeClusters
+  PROJ_ROOT = File.join __dir__, ".."
 
   # Given an ary of strings, find the most common string in the ary.
   #
@@ -48,18 +50,24 @@ module TreeClusters
   # @note Each string is upcase'd before frequencies are calculated.
   def consensus bases
     bases.
-      map(&:upcase).
-      group_by(&:itself).
-      sort_by { |_, bases| bases.count }.
-      reverse.
-      first.
-      first
+        map(&:upcase).
+        group_by(&:itself).
+        sort_by { |_, bases| bases.count }.
+        reverse.
+        first.
+        first
   end
 
   def read_alignment aln_fname
     leaf2attrs = TreeClusters::Attrs.new
-    aln_len = nil
+    aln_len    = nil
+    seq_num = 0
     ParseFasta::SeqFile.open(aln_fname).each_record do |rec|
+      seq_num += 1
+      if ((seq_num + 1) % 1000).zero?
+        STDERR.printf("Reading alignment: #{seq_num + 1}\r")
+      end
+
       leaf2attrs[rec.id] = { aln: rec.seq.chars }
 
       aln_len ||= rec.seq.length
@@ -73,13 +81,13 @@ module TreeClusters
 
   def low_ent_cols leaves, leaf2attrs, entropy_cutoff
     low_ent_cols = []
-    alns = leaf2attrs.attrs leaves, :aln
-    aln_cols = alns.transpose
+    alns         = leaf2attrs.attrs leaves, :aln
+    aln_cols     = alns.transpose
 
     aln_cols.each_with_index do |aln_col, aln_col_idx|
-      has_gaps = aln_col.any? { |aa| aa == "-" }
+      has_gaps    = aln_col.any? { |aa| aa == "-" }
       low_entropy =
-        Shannon::entropy(aln_col.join.upcase) <= entropy_cutoff
+          Shannon::entropy(aln_col.join.upcase) <= entropy_cutoff
 
       if !has_gaps && low_entropy
         low_ent_cols << (aln_col_idx + 1)
@@ -92,11 +100,11 @@ module TreeClusters
   # Like low_ent_cols method but also returns the bases at the positions.
   def low_ent_cols_with_bases leaves, leaf2attrs, entropy_cutoff
     low_ent_cols = []
-    alns = leaf2attrs.attrs leaves, :aln
-    aln_cols = alns.transpose
+    alns         = leaf2attrs.attrs leaves, :aln
+    aln_cols     = alns.transpose
 
     aln_cols.each_with_index do |aln_col, aln_col_idx|
-      has_gaps = aln_col.any? { |aa| aa == "-" }
+      has_gaps    = aln_col.any? { |aa| aa == "-" }
       low_entropy =
           Shannon::entropy(aln_col.join.upcase) <= entropy_cutoff
 
@@ -130,9 +138,9 @@ module TreeClusters
     if !(tree_ids == mapping_ids && mapping_ids == aln_ids)
       AbortIf::logger.error { "Seq IDs did not match in all input files" }
 
-      tree_ids = tree_ids.to_a.sort
+      tree_ids    = tree_ids.to_a.sort
       mapping_ids = mapping_ids.to_a.sort
-      aln_ids = aln_ids.to_a.sort
+      aln_ids     = aln_ids.to_a.sort
 
       AbortIf::logger.debug { ["tree_ids", tree_ids].join "\t" }
       AbortIf::logger.debug { ["mapping_ids", mapping_ids].join "\t" }
@@ -152,7 +160,7 @@ module TreeClusters
   # @yieldparam clade [Clade] a clade of the tree
   #
   # @return [Enumerator<Clade>] enumerator of Clade objects
-  def all_clades tree, metadata=nil
+  def all_clades tree, metadata = nil
     return enum_for(:all_clades, tree, metadata) unless block_given?
 
     tree.clade_nodes.reverse.each do |node|
@@ -164,12 +172,12 @@ module TreeClusters
     snazzy_clades = {}
 
     clades = self.
-             all_clades(tree, metadata).
-             sort_by { |clade| clade.all_leaves.count }.
-             reverse
+        all_clades(tree, metadata).
+        sort_by { |clade| clade.all_leaves.count }.
+        reverse
 
     metadata.each do |md_cat, leaf2mdtag|
-      already_checked = Set.new
+      already_checked   = Set.new
       single_tag_clades = {}
 
       clades.each do |clade|
@@ -177,8 +185,8 @@ module TreeClusters
                "A clade cannot also be a leaf"
 
         unless clade.all_leaves.all? do |leaf|
-                 already_checked.include? leaf
-               end
+          already_checked.include? leaf
+        end
           md_tags = clade.all_leaves.map do |leaf|
             assert leaf2mdtag.has_key?(leaf),
                    "leaf #{leaf} is missing from leaf2mdtag ht"
@@ -224,9 +232,9 @@ module TreeClusters
     snazzy_info = {}
 
     clades = self.
-             all_clades(tree, metadata).
-             sort_by { |clade| clade.all_leaves.count }.
-             reverse
+        all_clades(tree, metadata).
+        sort_by { |clade| clade.all_leaves.count }.
+        reverse
 
     # Non snazzy clades have a value of nil, so set all to nil and the
     # snazzy ones will be overwritten.
@@ -235,7 +243,7 @@ module TreeClusters
     end
 
     metadata.each do |md_cat, leaf2mdtag|
-      already_checked = Set.new
+      already_checked   = Set.new
       single_tag_clades = {}
 
       clades.each do |clade|
@@ -243,8 +251,8 @@ module TreeClusters
                "A clade cannot also be a leaf"
 
         unless clade.all_leaves.all? do |leaf|
-                 already_checked.include? leaf
-               end
+          already_checked.include? leaf
+        end
           md_tags = clade.all_leaves.map do |leaf|
             assert leaf2mdtag.has_key?(leaf),
                    "leaf #{leaf} is missing from leaf2mdtag ht"
@@ -289,7 +297,7 @@ module TreeClusters
 
   def read_mapping_file fname
     md_cat_names = nil
-    metadata = TreeClusters::Attrs.new
+    metadata     = TreeClusters::Attrs.new
 
     File.open(fname, "rt").each_line.with_index do |line, idx|
       leaf_name, *metadata_vals = line.chomp.split "\t"
@@ -342,6 +350,6 @@ module TreeClusters
       end
     end
 
-      [attr_names, attrs]
+    [attr_names, attrs]
   end
 end

@@ -147,9 +147,14 @@ abort_unless opts[:clade_size_cutoff] >= 1,
 
 FileUtils.mkdir_p opts[:outdir]
 
-AbortIf.logger.info { "Parsing input files" }
+AbortIf.logger.info { "Reading tree" }
+tree = NewickTree.fromFile opts[:tree]
 
-tree       = NewickTree.fromFile opts[:tree]
+AbortIf.logger.info { "Getting taxa" }
+taxa = tree.taxa
+
+
+AbortIf.logger.info { "Reading alignment" }
 leaf2attrs = TreeClusters.read_alignment opts[:aln]
 
 members_fname        =
@@ -169,9 +174,10 @@ key_cols_f       =
 annotated_tree_f =
     File.open(annotated_tree_fname, "w")
 
-key_col_sets       = {}
-clade_sizes        = {}
-clade_count        = TreeClusters.all_clades(tree).count
+key_col_sets = {}
+clade_sizes  = {}
+# AbortIf.logger.info { "Counting clades" }
+# clade_count        = TreeClusters.all_clades(tree).count
 change_these_names = Set.new
 
 def all_clades_helper tree
@@ -181,10 +187,10 @@ end
 AbortIf.logger.info { "Processing clades" }
 begin
   all_clades_helper(tree).each_with_index do |clade, idx|
-    if ((idx + 1) % 100).zero?
-      perc = ((idx + 1) / clade_count.to_f * 100).round 2
+    if ((idx + 1) % 10).zero?
+      # perc = ((idx + 1) / clade_count.to_f * 100).round 2
 
-      STDERR.printf("Processing clades: #{perc}%\r")
+      STDERR.printf("Processing clades: #{idx + 1}\r")
     end
 
     clade_id              = "clade_#{idx + 1}___#{clade.name.tr("'", "_")}"
