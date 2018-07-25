@@ -20,13 +20,25 @@ Or install it yourself as:
 
     $ gem install tree_clusters
 
-## Documentation
+## Command line scripts
+
+### key_cols
+
+Use this to find key columns in an alignment.  For more information, run
+
+```bash
+key_cols --help
+```
+
+## API 
+
+### Documentation
 
 Checkout
 [TreeClusters docs](http://rubydoc.info/gems/tree_clusters)
 for the full api documentation.
 
-## Usage
+### Usage
 
 Here is a small example.
 
