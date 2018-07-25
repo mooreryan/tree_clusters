@@ -121,10 +121,10 @@ Option info
 
   opt(:outdir,
       "Output directory",
-      default: ".")
+      default: "key_cols_output")
   opt(:base,
       "Basename for output",
-      default: "snazzy_clades")
+      default: "key_cols_output")
 end
 
 abort_if opts[:tree].nil?,
