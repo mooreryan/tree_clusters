@@ -30,5 +30,6 @@ todo.txt
 *.lock
 
 .idea
+ARST
 
 exe/key_cols2

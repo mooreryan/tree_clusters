@@ -9,7 +9,8 @@ require "fileutils"
 
 TreeClusters.extend TreeClusters
 
-GREETING = "The '#{__FILE__}' program"
+PROGRAM   = "key_cols"
+GREETING  = "The #{PROGRAM} program"
 UNDERLINE = "=" * GREETING.length
 
 opts = Trollop.options do
@@ -46,10 +47,10 @@ opts = Trollop.options do
 
   banner <<-EOS
 
-#{GREETING}
+#{GREETING} 
 #{UNDERLINE}
 
-  Hi.  My name is #{__FILE__}.  If you give me a Newick tree file and
+  Hi.  My name is #{PROGRAM}.  If you give me a Newick tree file and
   an alignment file (fasta format), I will tell you key columns for
   all clades/clusters that have them.
 
@@ -62,7 +63,7 @@ Overview
 
   Here's an example....
 
-  After you run me (#{__FILE__} is my name), you'll get an output file
+  After you run me (#{PROGRAM} is my name), you'll get an output file
   with the extension, '*.tree_clusters.key_cols.txt'.  It may look
   something like this:
 
@@ -127,9 +128,9 @@ Option info
 end
 
 abort_if opts[:tree].nil?,
-         "--tree is a required arg.  Try running: #{__FILE__} --help"
+         "--tree is a required arg.  Try running: #{PROGRAM} --help"
 abort_if opts[:aln].nil?,
-         "--aln is a required arg.  Try running: #{__FILE__} --help"
+         "--aln is a required arg.  Try running: #{PROGRAM} --help"
 
 abort_unless_file_exists opts[:tree]
 abort_unless_file_exists opts[:aln]
@@ -146,37 +147,39 @@ FileUtils.mkdir_p opts[:outdir]
 tree       = NewickTree.fromFile opts[:tree]
 leaf2attrs = TreeClusters.read_alignment opts[:aln]
 
-members_fname                     =
-  File.join opts[:outdir],
-            "#{opts[:base]}.tree_clusters.clade_members.txt"
-key_cols_fname                    =
-  File.join opts[:outdir],
-            "#{opts[:base]}.tree_clusters.key_cols.txt"
+members_fname        =
+    File.join opts[:outdir],
+              "#{opts[:base]}.tree_clusters.clade_members.txt"
+key_cols_fname       =
+    File.join opts[:outdir],
+              "#{opts[:base]}.tree_clusters.key_cols.txt"
 annotated_tree_fname =
-  File.join opts[:outdir],
-            "#{opts[:base]}.tree_clusters.annotated_tree.txt"
+    File.join opts[:outdir],
+              "#{opts[:base]}.tree_clusters.annotated_tree.txt"
 
-clade_members_f               =
-  File.open(members_fname, "w")
-key_cols_f                    =
-  File.open(key_cols_fname, "w")
-annotated_tree_f                    =
-  File.open(annotated_tree_fname, "w")
+clade_members_f  =
+    File.open(members_fname, "w")
+key_cols_f       =
+    File.open(key_cols_fname, "w")
+annotated_tree_f =
+    File.open(annotated_tree_fname, "w")
 
 key_col_sets = {}
+clade_sizes  = {}
 
 begin
   TreeClusters.all_clades(tree).sort_by {|cl| cl.all_leaves.count}.reverse.each_with_index do |clade, idx|
-    clade_id = "clade_#{idx + 1}___#{clade.name.tr("'", "_")}"
+    clade_id              = "clade_#{idx + 1}___#{clade.name.tr("'", "_")}"
+    clade_sizes[clade_id] = clade.all_leaves.count
 
     clade_members_f.puts [clade_id,
                           clade.all_leaves.count,
                           clade.all_leaves].join "\t"
 
-    key_cols_all_leaves         =
-      TreeClusters.low_ent_cols_with_bases clade.all_leaves,
-                                           leaf2attrs,
-                                           opts[:entropy_cutoff]
+    key_cols_all_leaves =
+        TreeClusters.low_ent_cols_with_bases clade.all_leaves,
+                                             leaf2attrs,
+                                             opts[:entropy_cutoff]
 
     unless key_col_sets.has_key? key_cols_all_leaves
       key_col_sets[key_cols_all_leaves] = Set.new [clade_id]
@@ -189,13 +192,16 @@ begin
   end
 
   # We only want key column sets that are unique to a single clade.
-  key_col_sets.select { |_, clades| clades.count == 1 }.each do |kc_set, clades|
+  key_col_sets.select {|_, clades| clades.count == 1}.each do |kc_set, clades|
     clade_id = clades.first
-    key_cols_f.puts [
-      clade_id,
-      kc_set.count,
-      kc_set.map { |pos, bases| "#{pos}-#{bases.join}" }
-    ].join "\t"
+
+    # TODO should we just skip processing clades that are too small rather than just not printing them out?
+    if clade_sizes[clade_id] > opts[:clade_size_cutoff]
+      key_cols_f.puts [clade_id,
+                       kc_set.count,
+                       kc_set.map {|pos, bases| "#{pos}-#{bases.join}"}
+                      ].join "\t"
+    end
   end
 
   annotated_tree_f.puts tree.to_s.sub(/;+$/, ";")
