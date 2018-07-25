@@ -47,8 +47,8 @@ opts = Trollop.options do
 
   banner <<-EOS
 
-#{GREETING} 
-#{UNDERLINE}
+#{GREETING}
+  #{UNDERLINE}
 
   Hi.  My name is #{PROGRAM}.  If you give me a Newick tree file and
   an alignment file (fasta format), I will tell you key columns for
@@ -144,6 +144,8 @@ abort_unless opts[:clade_size_cutoff] >= 1,
 
 FileUtils.mkdir_p opts[:outdir]
 
+AbortIf.logger.info { "Parsing input files" }
+
 tree       = NewickTree.fromFile opts[:tree]
 leaf2attrs = TreeClusters.read_alignment opts[:aln]
 
@@ -166,9 +168,17 @@ annotated_tree_f =
 
 key_col_sets = {}
 clade_sizes  = {}
+clade_count  = TreeClusters.all_clades(tree).count
 
+AbortIf.logger.info { "Processing clades" }
 begin
   TreeClusters.all_clades(tree).sort_by {|cl| cl.all_leaves.count}.reverse.each_with_index do |clade, idx|
+    if ((idx + 1) % 100).zero?
+      perc = ((idx + 1) / clade_count.to_f * 100).round 2
+
+      STDERR.printf("Processing clades: #{perc}%\r")
+    end
+
     clade_id              = "clade_#{idx + 1}___#{clade.name.tr("'", "_")}"
     clade_sizes[clade_id] = clade.all_leaves.count
 
@@ -188,8 +198,9 @@ begin
 
     # This will change the node in the original NewickTree
     clade.node.name = "'#{clade_id}'"
-
   end
+
+  AbortIf.logger.info { "Writing results" }
 
   # We only want key column sets that are unique to a single clade.
   key_col_sets.select {|_, clades| clades.count == 1}.each do |kc_set, clades|
