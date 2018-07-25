@@ -188,13 +188,23 @@ def all_clades_helper tree
       reverse
 end
 
-AbortIf.logger.info { "Processing clades" }
-begin
-  all_clades_helper(tree).each_with_index do |clade, idx|
-    if ((idx + 1) % 10).zero?
-      # perc = ((idx + 1) / clade_count.to_f * 100).round 2
+AbortIf.logger.info { "Getting all clades" }
+clades      = all_clades_helper(tree)
+clade_count = clades.count
 
-      STDERR.printf("Processing clades: #{idx + 1}\r")
+AbortIf.logger.info { "Processing clades (The first few clades go reaaally slowly, but then I speed up!)" }
+begin
+  clades.each_with_index do |clade, idx|
+    # It starts off really slowly, then speeds up a lot.
+    if (idx+1) < 100 ||
+        ((idx+1) < 1000 && ((idx + 1) % 10).zero?) ||
+        ((idx+1) < 10000 && ((idx + 1) % 100).zero?) ||
+        ((idx+1) < 100000 && ((idx + 1) % 1000).zero?) ||
+        ((idx + 1) % 10000).zero?
+
+      perc = ((idx + 1) / clade_count.to_f * 100).round 2
+
+      STDERR.printf("Processing clades: #{idx + 1} of #{clade_count} (#{perc}%%)\r")
     end
 
     clade_id              = "clade_#{idx + 1}___#{clade.name.tr("'", "_")}"
@@ -234,7 +244,7 @@ begin
 
   AbortIf.logger.info { "Annotating tree" }
 
-  all_clades_helper(tree).each_with_index do |clade, idx|
+  clades.each_with_index do |clade, idx|
     clade_id = "clade_#{idx + 1}___#{clade.name.tr("'", "_")}"
 
     if change_these_names.include? clade_id
