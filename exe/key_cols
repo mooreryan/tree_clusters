@@ -169,13 +169,18 @@ key_cols_f       =
 annotated_tree_f =
     File.open(annotated_tree_fname, "w")
 
-key_col_sets = {}
-clade_sizes  = {}
-clade_count  = TreeClusters.all_clades(tree).count
+key_col_sets       = {}
+clade_sizes        = {}
+clade_count        = TreeClusters.all_clades(tree).count
+change_these_names = Set.new
+
+def all_clades_helper tree
+  TreeClusters.all_clades(tree).sort_by { |cl| cl.all_leaves.count }.reverse
+end
 
 AbortIf.logger.info { "Processing clades" }
 begin
-  TreeClusters.all_clades(tree).sort_by {|cl| cl.all_leaves.count}.reverse.each_with_index do |clade, idx|
+  all_clades_helper(tree).each_with_index do |clade, idx|
     if ((idx + 1) % 100).zero?
       perc = ((idx + 1) / clade_count.to_f * 100).round 2
 
@@ -199,22 +204,32 @@ begin
     end
     key_col_sets[key_cols_all_leaves] << clade_id
 
-    # This will change the node in the original NewickTree
-    clade.node.name = "'#{clade_id}'"
   end
 
   AbortIf.logger.info { "Writing results" }
 
   # We only want key column sets that are unique to a single clade.
-  key_col_sets.select {|_, clades| clades.count == 1}.each do |kc_set, clades|
+  key_col_sets.select { |_, clades| clades.count == 1 }.each do |kc_set, clades|
     clade_id = clades.first
 
     # TODO should we just skip processing clades that are too small rather than just not printing them out?
-    if clade_sizes[clade_id] > opts[:clade_size_cutoff]
+    if clade_sizes[clade_id] >= opts[:clade_size_cutoff]
+      change_these_names << clade_id
       key_cols_f.puts [clade_id,
                        kc_set.count,
-                       kc_set.map {|pos, bases| "#{pos}-#{bases.join}"}
+                       kc_set.map { |pos, bases| "#{pos}-#{bases.join}" }
                       ].join "\t"
+    end
+  end
+
+  AbortIf.logger.info { "Annotating tree" }
+
+  all_clades_helper(tree).each_with_index do |clade, idx|
+    clade_id = "clade_#{idx + 1}___#{clade.name.tr("'", "_")}"
+
+    if change_these_names.include? clade_id
+      # This will change the node in the original NewickTree
+      clade.node.name = "'#{clade_id}'"
     end
   end
 
